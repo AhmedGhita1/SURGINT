@@ -7,7 +7,7 @@ import yaml
 class Config:
     checkpoint: str = "PekingU/rtdetr_r18vd_coco_o365"
     device: str = "cuda"
-    input_size: list[int] = field(default_factory=lambda: [960, 544])
+    input_size: list[int] = field(default_factory=lambda: [1024, 576])
     confidence_threshold: float = 0.3
 
     data_root: str = "data/synthetic/production_v1/dataset"
