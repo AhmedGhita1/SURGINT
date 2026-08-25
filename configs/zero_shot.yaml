@@ -1,0 +1,5 @@
+checkpoint: PekingU/rtdetr_r18vd_coco_o365
+input_size: [1024, 576]
+data_root: data/synthetic/production_v1/dataset
+split: val
+iou_threshold: 0.5
