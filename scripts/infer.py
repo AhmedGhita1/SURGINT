@@ -1,3 +1,5 @@
+# a smoke entrpoint.
+
 import argparse
 from pathlib import Path
 
