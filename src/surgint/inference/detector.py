@@ -1,14 +1,15 @@
 import torch
+from transformers import RTDetrImageProcessor
 
-from surgint.detection.model import build_model, build_processor
+from surgint.detection.model import load_model
 
 
 class Detector:
-    def __init__(self, checkpoint: str, device: str = "cuda", id2label: dict[int, str] | None = None):
+    def __init__(self, checkpoint: str, device: str = "cuda"):
         self.checkpoint = checkpoint
         self.device = device
-        self.processor = build_processor(checkpoint)
-        self.model = build_model(checkpoint, id2label).to(device).eval()
+        self.processor = RTDetrImageProcessor.from_pretrained(checkpoint)
+        self.model = load_model(checkpoint).to(device).eval()
         self.id2label = self.model.config.id2label
 
     @torch.no_grad()
