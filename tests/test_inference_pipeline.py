@@ -1,5 +1,3 @@
-"""the stable contract: numpy frame in, camera-pixel boxes out, no model types leaking"""
-
 from functools import lru_cache
 
 import numpy as np
