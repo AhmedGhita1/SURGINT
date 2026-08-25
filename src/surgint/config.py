@@ -6,9 +6,7 @@ import yaml
 @dataclass
 class Config:
     checkpoint: str = "PekingU/rtdetr_r18vd_coco_o365"
-    device: str = "cuda"
     input_size: list[int] = field(default_factory=lambda: [1024, 576])
-    confidence_threshold: float = 0.3
 
     data_root: str = "data/synthetic/production_v1/dataset"
 
@@ -25,8 +23,6 @@ class Config:
             raise ValueError(f"input_size must be [width, height], got {self.input_size}")
         if any(v <= 0 or v % 32 for v in self.input_size):
             raise ValueError(f"input_size must be positive and divisible by 32, got {self.input_size}")
-        if not 0.0 <= self.confidence_threshold <= 1.0:
-            raise ValueError(f"confidence_threshold must be in [0, 1], got {self.confidence_threshold}")
         if self.batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
 
