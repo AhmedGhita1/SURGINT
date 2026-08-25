@@ -1,5 +1,4 @@
 import torch
-from transformers import RTDetrImageProcessor
 
 from surgint.detection.model import load_model
 
@@ -8,13 +7,10 @@ class Detector:
     def __init__(self, checkpoint: str, device: str = "cuda"):
         self.checkpoint = checkpoint
         self.device = device
-        self.processor = RTDetrImageProcessor.from_pretrained(checkpoint)
         self.model = load_model(checkpoint).to(device).eval()
-        self.id2label = self.model.config.id2label
 
-    @torch.no_grad()
-    def __call__(self, canvases) -> tuple[torch.Tensor, torch.Tensor]:
-        """letterboxed canvases to raw logits and normalized cxcywh boxes"""
-        pixel_values = self.processor(images=canvases, do_resize=False, return_tensors="pt")["pixel_values"]
+    @torch.inference_mode()
+    def __call__(self, pixel_values: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """(B, 3, H, W) to raw logits and normalized cxcywh boxes"""
         outputs = self.model(pixel_values=pixel_values.to(self.device))
-        return outputs.logits, outputs.pred_boxes
+        return outputs.logits.cpu(), outputs.pred_boxes.cpu()
