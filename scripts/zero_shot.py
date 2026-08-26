@@ -7,7 +7,7 @@ from PIL import Image
 
 from surgint.config import load_config
 from surgint.evaluation.recall import count_matches
-from surgint.inference.detector import Pipeline
+from surgint.inference.detector import InferencePipeline
 
 CONFIG = Path("configs/zero_shot.yaml")
 OUTPUT = Path("outputs/results/zero_shot.json")
@@ -34,7 +34,7 @@ def main():
     file_names, ground_truth = load_ground_truth(
         data_root / "annotations" / f"instances_{config.split}.json"
     )
-    pipeline = Pipeline(config.checkpoint, config.input_size, DEVICE)
+    pipeline = InferencePipeline(config.checkpoint, config.input_size, DEVICE)
 
     instruments = 0
     matches = defaultdict(int)

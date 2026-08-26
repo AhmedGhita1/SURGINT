@@ -29,7 +29,7 @@ class Detector:
         return outputs.logits.cpu(), outputs.pred_boxes.cpu()
 
 
-class Pipeline:
+class InferencePipeline:
     def __init__(self, checkpoint: str, input_size: list[int], device: str = "cuda"):
         self.width, self.height = input_size
         self.detector = Detector(checkpoint, device)

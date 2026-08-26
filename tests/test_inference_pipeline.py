@@ -4,15 +4,15 @@ import numpy as np
 import torch
 
 from surgint.config import Config
-from surgint.inference.detector import DetectionResult, Pipeline
+from surgint.inference.detector import DetectionResult, InferencePipeline
 
 FRAME = np.zeros((720, 1280, 3), dtype=np.uint8)
 
 
 @lru_cache(maxsize=1)
-def build_pipeline() -> Pipeline:
+def build_pipeline() -> InferencePipeline:
     config = Config()
-    return Pipeline(config.checkpoint, config.input_size, device="cpu")
+    return InferencePipeline(config.checkpoint, config.input_size, device="cpu")
 
 
 def test_predict_returns_the_contract():

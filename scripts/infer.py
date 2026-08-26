@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
-from surgint.inference.detector import DetectionResult, Pipeline
+from surgint.inference.detector import DetectionResult, InferencePipeline
 
 BOX_COLOR = (255, 64, 0)
 
@@ -32,7 +32,7 @@ def main():
     args = parser.parse_args()
 
     frame = np.asarray(Image.open(args.image).convert("RGB"))
-    pipeline = Pipeline(args.checkpoint, args.input_size, args.device)
+    pipeline = InferencePipeline(args.checkpoint, args.input_size, args.device)
     result = pipeline.predict(frame, args.threshold)
 
     for box, score, class_id in zip(result.boxes, result.scores, result.class_ids):
