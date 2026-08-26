@@ -8,9 +8,12 @@ from torch.utils.data import DataLoader, Subset
 
 from surgint.config import load_config, save_config
 from surgint.dataset.coco import CocoDetection, collate
-from surgint.detection.model import load_model, load_model_with_new_head
+from surgint.detection.model import load_model_with_new_head
+from surgint.detection.postprocessing import decode, to_frame_boxes
+from surgint.evaluation import MetricsFn
+from surgint.evaluation.detection import coco_predictions, evaluate
 from surgint.evaluation.recall import count_matches
-from surgint.inference.detector import InferencePipeline
+from surgint.inference.detector import DetectionResult, InferencePipeline
 from surgint.training.trainer import Trainer
 
 CONFIG = Path("configs/overfit20.yaml")
@@ -25,9 +28,52 @@ def layout_subset(dataset: CocoDetection, layouts: int, seed: int = 0) -> list[i
     return [index for index, layout in enumerate(layout_ids) if layout in chosen]
 
 
-def report_recall(run_dir: Path, dataset: CocoDetection, indices: list[int]) -> None:
+def build_overfit_metrics_fn(dataset: CocoDetection, loader: DataLoader, indices: list[int]) -> MetricsFn:
+    """COCO mAP over only the frames used by this overfit gate."""
+    image_ids = {dataset.samples[index][0] for index in indices}
+    annotations = {
+        **dataset.annotations,
+        "images": [image for image in dataset.annotations["images"] if image["id"] in image_ids],
+        "annotations": [
+            annotation
+            for annotation in dataset.annotations["annotations"]
+            if annotation["image_id"] in image_ids
+        ],
+    }
+    to_category = {label: category for category, label in dataset.category_map.items()}
+
+    @torch.inference_mode()
+    def metrics_fn(model: torch.nn.Module) -> dict:
+        model.eval()
+        device = next(model.parameters()).device
+        predictions = []
+
+        for batch in loader:
+            outputs = model(pixel_values=batch["pixel_values"].to(device))
+            detections = decode(
+                outputs.logits.cpu(),
+                outputs.pred_boxes.cpu(),
+                dataset.width,
+                dataset.height,
+                0.0,
+            )
+            for (boxes, scores, class_ids), image_id, scale, frame_size in zip(
+                detections,
+                batch["image_ids"],
+                batch["scales"],
+                batch["frame_sizes"],
+            ):
+                result = DetectionResult(to_frame_boxes(boxes, scale, frame_size), scores, class_ids)
+                predictions += coco_predictions(image_id, result, to_category)
+
+        return evaluate(annotations, predictions)
+
+    return metrics_fn
+
+
+def report_recall(checkpoint: Path, dataset: CocoDetection, indices: list[int]) -> None:
     """the real check: the model must find what it memorized"""
-    pipeline = InferencePipeline(run_dir, dataset_input_size(dataset), DEVICE)
+    pipeline = InferencePipeline(checkpoint, device=DEVICE)
     instruments = 0
     matches = {threshold: 0 for threshold in THRESHOLDS}
 
@@ -44,10 +90,6 @@ def report_recall(run_dir: Path, dataset: CocoDetection, indices: list[int]) -> 
         print(f"  score {threshold}: {matches[threshold] / instruments:.3f}")
 
 
-def dataset_input_size(dataset: CocoDetection) -> list[int]:
-    return [dataset.width, dataset.height]
-
-
 def main():
     config = load_config(CONFIG)
     torch.manual_seed(config.seed)
@@ -56,17 +98,19 @@ def main():
     indices = layout_subset(data, config.layouts, config.seed)
     subset = Subset(data, indices)
     loader = DataLoader(subset, batch_size=config.batch_size, shuffle=True, collate_fn=collate)
+    score_loader = DataLoader(subset, batch_size=config.batch_size, shuffle=False, collate_fn=collate)
 
     model = load_model_with_new_head(config.checkpoint, data.id2label)
-    trainer = Trainer(model, config, DEVICE)
+    metrics_fn = build_overfit_metrics_fn(data, score_loader, indices)
+    trainer = Trainer(model, config, metrics_fn, DEVICE)
     trainer.run_dir.mkdir(parents=True, exist_ok=True)
     save_config(config, trainer.run_dir / "config.yaml")
 
     print(f"run {config.run_id}")
     print(f"{config.layouts} layouts, {len(subset)} frames, {config.epochs} epochs, lr {config.learning_rate}")
 
-    trainer.train(loader, loader)
-    report_recall(trainer.run_dir / "best", data, indices)
+    trainer.train(loader)
+    report_recall(trainer.best_dir, data, indices)
     print(f"\nwrote {trainer.run_dir}")
 
 

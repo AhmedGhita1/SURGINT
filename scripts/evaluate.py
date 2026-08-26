@@ -15,17 +15,21 @@ DEVICE = "cuda"
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("run", type=Path, help="a run directory holding weights and config.yaml")
+    parser.add_argument(
+        "checkpoint",
+        type=Path,
+        help="a checkpoint directory, best/ or latest/, holding weights, manifest.json, and config.yaml",
+    )
     args = parser.parse_args()
 
-    config = load_config(args.run / "config.yaml")
+    config = load_config(args.checkpoint / "config.yaml")
     root = Path(config.data_root)
 
     data = CocoDetection(root, config.split, config.input_size)
 
     to_category = {label: category for category, label in data.category_map.items()}
 
-    pipeline = InferencePipeline(args.run, config.input_size, DEVICE)
+    pipeline = InferencePipeline(args.checkpoint, device=DEVICE)
     predictions = []
     for index, (image_id, file_name, _, _) in enumerate(data.samples, start=1):
         frame = np.asarray(Image.open(data.images / file_name).convert("RGB"))
@@ -35,17 +39,18 @@ def main():
 
     metrics = evaluate(data.annotations, predictions)
     metrics["run_id"] = config.run_id
+    metrics["checkpoint"] = args.checkpoint.name
     metrics["split"] = config.split
     metrics["frames"] = len(data)
 
-    print(f"\n{config.run_id} on {config.split}, {len(data)} frames")
-    print(f"  mAP     {metrics['map']:.4f}")
-    print(f"  mAP@50  {metrics['map50']:.4f}")
-    print(f"  mAP@75  {metrics['map75']:.4f}")
+    print(f"\n{config.run_id} {args.checkpoint.name} on {config.split}, {len(data)} frames")
+    print(f"  mAP50_95  {metrics['mAP50_95']:.4f}")
+    print(f"  mAP50     {metrics['mAP50']:.4f}")
+    print(f"  mAP75     {metrics['mAP75']:.4f}")
     for name, value in sorted(metrics["per_class"].items(), key=lambda item: -item[1]):
         print(f"    {name:<12} {value:.3f}")
 
-    destination = args.run / "metrics.json"
+    destination = args.checkpoint / "metrics.json"
     destination.write_text(json.dumps(metrics, indent=2) + "\n")
     print(f"\nwrote {destination}")
 

@@ -20,7 +20,7 @@ class Config:
     layouts: int = 0
     iou_threshold: float = 0.5
     metrics: list[str] = field(default_factory=lambda: ["mAP50_95", "mAP50", "mAP75"])
-    select_metric: str = "mAP50"
+    select_metric: str = "mAP50_95"
 
     epochs: int = 20
     batch_size: int = 8

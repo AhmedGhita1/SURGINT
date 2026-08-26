@@ -1,11 +1,13 @@
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import torch
 
 from surgint.detection.model import load_model
-from surgint.detection.postprocessing import decode
-from surgint.detection.preprocessing import letterbox, to_pixel_values, unletterbox_boxes
+from surgint.detection.postprocessing import decode, to_frame_boxes
+from surgint.detection.preprocessing import letterbox, to_pixel_values
 
 
 @dataclass(frozen=True)
@@ -30,7 +32,12 @@ class Detector:
 
 
 class InferencePipeline:
-    def __init__(self, checkpoint: str, input_size: list[int], device: str = "cuda"):
+    def __init__(self, checkpoint: str, input_size: list[int] | None = None, device: str = "cuda"):
+        manifest = Path(checkpoint) / "manifest.json"
+        if input_size is None:
+            if not manifest.exists():
+                raise ValueError(f"{checkpoint} has no manifest; pass input_size for an external checkpoint")
+            input_size = json.loads(manifest.read_text())["input_size"]
         self.width, self.height = input_size
         self.detector = Detector(checkpoint, device)
         self.id2label = self.detector.id2label
@@ -42,9 +49,4 @@ class InferencePipeline:
             logits, pred_boxes, self.width, self.height, score_threshold
         )[0]
 
-        boxes = unletterbox_boxes(boxes, scale)
-        height, width = frame.shape[:2]
-        boxes[:, 0::2] = boxes[:, 0::2].clip(0, width)
-        boxes[:, 1::2] = boxes[:, 1::2].clip(0, height)
-
-        return DetectionResult(boxes.astype(np.float32), scores, class_ids)
+        return DetectionResult(to_frame_boxes(boxes, scale, frame.shape[:2]), scores, class_ids)

@@ -1,12 +1,18 @@
 import contextlib
 import io
 
+import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
+from torch.utils.data import DataLoader
+
+from surgint.dataset.coco import CocoDetection
+from surgint.detection.postprocessing import decode, to_frame_boxes
+from surgint.evaluation import MetricsFn
+from surgint.inference.detector import DetectionResult
 
 
 def coco_predictions(image_id: int, result, label_to_category: dict[int, int]) -> list[dict]:
-    """detections to coco records; xyxy back to xywh, label ids back to the original categories"""
     records = []
     for box, score, label in zip(result.boxes, result.scores, result.class_ids):
         x1, y1, x2, y2 = (float(value) for value in box)
@@ -22,7 +28,7 @@ def coco_predictions(image_id: int, result, label_to_category: dict[int, int]) -
 
 
 def evaluate(annotations: dict, predictions: list[dict]) -> dict:
-    """coco mAP over the whole split; empty predictions score zero rather than raising"""
+
     with contextlib.redirect_stdout(io.StringIO()):
         truth = COCO()
         truth.dataset = annotations
@@ -50,3 +56,28 @@ def evaluate(annotations: dict, predictions: list[dict]) -> dict:
         "mAP75": float(evaluation.stats[2]),
         "per_class": per_class,
     }
+
+
+def build_metrics_fn(dataset: CocoDetection, loader: DataLoader) -> MetricsFn:
+    """COCO mAP over a complete dataset, through the inference postprocessing."""
+    to_category = {label: category for category, label in dataset.category_map.items()}
+    width, height = dataset.width, dataset.height
+
+    @torch.inference_mode()
+    def metrics_fn(model: torch.nn.Module) -> dict:
+        model.eval()
+        device = next(model.parameters()).device
+        predictions = []
+
+        for batch in loader:
+            outputs = model(pixel_values=batch["pixel_values"].to(device))
+            detections = decode(outputs.logits.cpu(), outputs.pred_boxes.cpu(), width, height, 0.0)
+            for (boxes, scores, class_ids), image_id, scale, frame_size in zip(
+                detections, batch["image_ids"], batch["scales"], batch["frame_sizes"]
+            ):
+                result = DetectionResult(to_frame_boxes(boxes, scale, frame_size), scores, class_ids)
+                predictions += coco_predictions(image_id, result, to_category)
+
+        return evaluate(dataset.annotations, predictions)
+
+    return metrics_fn

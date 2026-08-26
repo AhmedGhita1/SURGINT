@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 
+from surgint.detection.preprocessing import unletterbox_boxes
+
 
 def decode(
     logits: torch.Tensor,
@@ -30,3 +32,12 @@ def decode(
             )
         )
     return detections
+
+
+def to_frame_boxes(boxes: np.ndarray, scale: float, frame_size: tuple[int, int]) -> np.ndarray:
+    """canvas pixels back to camera pixels, clipped to the frame"""
+    rows, columns = frame_size
+    boxes = unletterbox_boxes(boxes, scale)
+    boxes[:, 0::2] = boxes[:, 0::2].clip(0, columns)
+    boxes[:, 1::2] = boxes[:, 1::2].clip(0, rows)
+    return boxes.astype(np.float32)
