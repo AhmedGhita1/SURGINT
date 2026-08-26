@@ -100,6 +100,7 @@ class Trainer:
             metrics = {"epoch": epoch, "lr": self.scheduler.get_last_lr()[-1]}
             started = time.perf_counter()
             metrics["train_loss"] = self.train_epoch(train_loader)
+            rate = len(train_loader) / (time.perf_counter() - started)
             if val_loader is not None:
                 metrics["val_loss"] = self.validate(val_loader)
 
@@ -111,7 +112,7 @@ class Trainer:
                     f"  train_loss {metrics['train_loss']:.4f}")
             if "val_loss" in metrics:
                 line += f"  val_loss {metrics['val_loss']:.4f}"
-            line += f"  {elapsed:.0f}s  eta {remaining / 60:.0f}m"
+            line += f"  {rate:.2f} it/s  eta {remaining / 60:.0f}m"
             print(line, flush=True)
             self.save()
 
