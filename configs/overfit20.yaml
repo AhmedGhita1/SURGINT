@@ -3,13 +3,13 @@ input_size: [1024, 576]
 
 data_root: data/synthetic/production_v1/dataset
 run_dir: outputs/runs
-run_id: overfit20_600
+run_id: overfit20_bnfrozen
 split: train
 layouts: 4
 
-epochs: 600
+epochs: 300
 batch_size: 4
-learning_rate: 5.0e-4
+learning_rate: 1.0e-4
 backbone_learning_rate: 1.0e-5
 weight_decay: 1.0e-4
 warmup_steps: 100
