@@ -34,6 +34,8 @@ class Config:
             raise ValueError(f"input_size must be positive and divisible by 32, got {self.input_size}")
         if self.batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
+        if not self.run_id:
+            self.set_run_id()
 
     def set_run_id(self, run_id: str | None = None) -> str:
         """name the run; secrets keeps the name independent of the seeded rng"""
