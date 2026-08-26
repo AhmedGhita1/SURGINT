@@ -29,7 +29,7 @@ def evaluate(annotations: dict, predictions: list[dict]) -> dict:
         truth.createIndex()
         names = {category["id"]: category["name"] for category in truth.loadCats(truth.getCatIds())}
         if not predictions:
-            return {"map": 0.0, "map50": 0.0, "map75": 0.0, "per_class": dict.fromkeys(names.values(), 0.0)}
+            return {"mAP50_95": 0.0, "mAP50": 0.0, "mAP75": 0.0, "per_class": dict.fromkeys(names.values(), 0.0)}
 
         evaluation = COCOeval(truth, truth.loadRes(predictions), "bbox")
         evaluation.evaluate()
@@ -45,8 +45,8 @@ def evaluate(annotations: dict, predictions: list[dict]) -> dict:
         per_class[names[category_id]] = float(scores.mean()) if scores.size else float("nan")
 
     return {
-        "map": float(evaluation.stats[0]),
-        "map50": float(evaluation.stats[1]),
-        "map75": float(evaluation.stats[2]),
+        "mAP50_95": float(evaluation.stats[0]),
+        "mAP50": float(evaluation.stats[1]),
+        "mAP75": float(evaluation.stats[2]),
         "per_class": per_class,
     }

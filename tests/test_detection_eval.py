@@ -43,9 +43,9 @@ def test_ground_truth_as_predictions_scores_perfect():
 
     metrics = evaluate(annotations, predictions)
 
-    print(f"map {metrics['map']:.3f}  map50 {metrics['map50']:.3f}  {metrics['per_class']}")
-    assert metrics["map"] == pytest.approx(1.0)
-    assert metrics["map50"] == pytest.approx(1.0)
+    print(f"map {metrics['mAP50_95']:.3f}  map50 {metrics['mAP50']:.3f}  {metrics['per_class']}")
+    assert metrics["mAP50_95"] == pytest.approx(1.0)
+    assert metrics["mAP50"] == pytest.approx(1.0)
     assert set(metrics["per_class"]) == {"scalpel", "scissors"}
 
 
@@ -61,8 +61,8 @@ def test_records_use_xywh_and_original_category_ids():
 def test_empty_predictions_score_zero():
     metrics = evaluate(build_annotations(), [])
 
-    print(f"map {metrics['map']}")
-    assert metrics["map"] == 0.0
+    print(f"map {metrics['mAP50_95']}")
+    assert metrics["mAP50_95"] == 0.0
     assert metrics["per_class"] == {"scalpel": 0.0, "scissors": 0.0}
 
 
@@ -72,8 +72,8 @@ def test_shifted_boxes_score_below_perfect():
 
     metrics = evaluate(build_annotations(), predictions)
 
-    print(f"shifted by 30px: map {metrics['map']:.3f}")
-    assert 0.0 <= metrics["map"] < 1.0
+    print(f"shifted by 30px: map {metrics['mAP50_95']:.3f}")
+    assert 0.0 <= metrics["mAP50_95"] < 1.0
 
 
 def test_unit_detection_eval():
