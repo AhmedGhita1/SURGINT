@@ -1,8 +1,6 @@
 import contextlib
 import io
-from pathlib import Path
 
-import numpy as np
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
@@ -23,10 +21,12 @@ def coco_predictions(image_id: int, result, label_to_category: dict[int, int]) -
     return records
 
 
-def evaluate(annotations: str | Path, predictions: list[dict]) -> dict:
+def evaluate(annotations: dict, predictions: list[dict]) -> dict:
     """coco mAP over the whole split; empty predictions score zero rather than raising"""
     with contextlib.redirect_stdout(io.StringIO()):
-        truth = COCO(str(annotations))
+        truth = COCO()
+        truth.dataset = annotations
+        truth.createIndex()
         names = {category["id"]: category["name"] for category in truth.loadCats(truth.getCatIds())}
         if not predictions:
             return {"map": 0.0, "map50": 0.0, "map75": 0.0, "per_class": dict.fromkeys(names.values(), 0.0)}

@@ -5,9 +5,6 @@
 #   empty predictions,
 #   a shifted box scores below perfect
 
-import json
-import tempfile
-from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -19,21 +16,15 @@ CATEGORIES = [{"id": 1, "name": "scalpel"}, {"id": 2, "name": "scissors"}]
 BOXES = [[100.0, 100.0, 50.0, 80.0], [400.0, 300.0, 60.0, 40.0]]
 
 
-def build_annotations() -> Path:
-    path = Path(tempfile.mkdtemp()) / "instances.json"
-    path.write_text(
-        json.dumps(
-            {
-                "images": [{"id": 7, "file_name": "a.png", "width": 1280, "height": 720}],
-                "annotations": [
-                    {"id": i, "image_id": 7, "category_id": i, "bbox": box, "area": box[2] * box[3], "iscrowd": 0}
-                    for i, box in enumerate(BOXES, start=1)
-                ],
-                "categories": CATEGORIES,
-            }
-        )
-    )
-    return path
+def build_annotations() -> dict:
+    return {
+        "images": [{"id": 7, "file_name": "a.png", "width": 1280, "height": 720}],
+        "annotations": [
+            {"id": i, "image_id": 7, "category_id": i, "bbox": box, "area": box[2] * box[3], "iscrowd": 0}
+            for i, box in enumerate(BOXES, start=1)
+        ],
+        "categories": CATEGORIES,
+    }
 
 
 def result_from(boxes: list[list[float]], labels: list[int]):
