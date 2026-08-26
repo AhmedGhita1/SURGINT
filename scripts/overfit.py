@@ -20,8 +20,9 @@ THRESHOLDS = [0.1, 0.3, 0.5, 0.7]
 
 def layout_subset(dataset: CocoDetection, layouts: int, seed: int = 0) -> list[int]:
     """every view of a few layouts; splitting by view would leak the same arrangement"""
-    chosen = set(random.Random(seed).sample(sorted(set(dataset.layout_ids)), layouts))
-    return [index for index, layout in enumerate(dataset.layout_ids) if layout in chosen]
+    layout_ids = [image["layout_id"] for image in dataset.annotations["images"]]
+    chosen = set(random.Random(seed).sample(sorted(set(layout_ids)), layouts))
+    return [index for index, layout in enumerate(layout_ids) if layout in chosen]
 
 
 def report_recall(run_dir: Path, dataset: CocoDetection, indices: list[int]) -> None:

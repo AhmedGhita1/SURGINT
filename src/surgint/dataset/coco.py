@@ -22,6 +22,7 @@ class CocoDetection(Dataset):
         self.width, self.height = input_size
 
         annotations = json.loads((root / "annotations" / f"instances_{split}.json").read_text())
+        self.annotations = annotations
         self.id2label, label2id = label_maps(load_classes(root / "classes.txt"))
         category_map = category_to_label(annotations["categories"], label2id)
 
