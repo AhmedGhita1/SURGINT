@@ -135,14 +135,16 @@ class Trainer:
             },
             self.run_dir / "training_state.pt",
         )
+        last = self.history[-1] if self.history else {}
+        last_loss = last.get("val_loss", last.get("train_loss"))
         (self.run_dir / "manifest.json").write_text(
             json.dumps(
                 {
                     "input_size": self.config.input_size,
                     "id2label": self.model.config.id2label,
                     "best_loss": self.best_loss,
-                    "last_loss": self.history[-1].get("val_loss", self.history[-1]["train_loss"])
-                    self.history: self.history,
+                    "last_loss": last_loss,
+                    "history": self.history,
                 },
                 indent=2,
             )
