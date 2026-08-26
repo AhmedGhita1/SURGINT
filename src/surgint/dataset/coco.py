@@ -6,7 +6,6 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
-from surgint.dataset.labels import category_to_label, label_maps, load_classes
 from surgint.detection.preprocessing import (
     letterbox,
     letterbox_boxes,
@@ -23,15 +22,17 @@ class CocoDetection(Dataset):
 
         annotations = json.loads((root / "annotations" / f"instances_{split}.json").read_text())
         self.annotations = annotations
-        self.id2label, label2id = label_maps(load_classes(root / "classes.txt"))
-        category_map = category_to_label(annotations["categories"], label2id)
+
+        categories = sorted(annotations["categories"], key=lambda category: category["id"])
+        self.category_map = {category["id"]: index for index, category in enumerate(categories)}
+        self.id2label = {index: category["name"] for index, category in enumerate(categories)}
 
         boxes: dict[int, list] = {image["id"]: [] for image in annotations["images"]}
         labels: dict[int, list] = {image["id"]: [] for image in annotations["images"]}
         for annotation in annotations["annotations"]:
             x, y, width, height = annotation["bbox"]
             boxes[annotation["image_id"]].append([x, y, x + width, y + height])
-            labels[annotation["image_id"]].append(category_map[annotation["category_id"]])
+            labels[annotation["image_id"]].append(self.category_map[annotation["category_id"]])
 
         self.samples = [
             (

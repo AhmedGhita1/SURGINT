@@ -5,7 +5,8 @@
 #   zero-area boxes,
 #   clipping to the canvas,
 #   collate batching,
-#   uint8 until collate
+#   uint8 until collate,
+#   reordered and non-contiguous category ids
 
 import json
 import tempfile
@@ -22,11 +23,10 @@ INPUT_SIZE = [1024, 576]
 FRAME = (720, 1280)
 
 
-def build_dataset(annotations: list[dict], images: int = 1) -> CocoDetection:
+def build_dataset(annotations: list[dict], images: int = 1, categories: list[dict] | None = None) -> CocoDetection:
     root = Path(tempfile.mkdtemp())
     (root / "val").mkdir()
     (root / "annotations").mkdir()
-    (root / "classes.txt").write_text("scalpel\nscissors\n")
 
     for index in range(images):
         Image.new("RGB", (FRAME[1], FRAME[0])).save(root / "val" / f"{index}.png")
@@ -36,7 +36,7 @@ def build_dataset(annotations: list[dict], images: int = 1) -> CocoDetection:
             {
                 "images": [{"id": i, "file_name": f"{i}.png"} for i in range(images)],
                 "annotations": annotations,
-                "categories": [{"id": 1, "name": "scalpel"}, {"id": 2, "name": "scissors"}],
+                "categories": categories or [{"id": 1, "name": "scalpel"}, {"id": 2, "name": "scissors"}],
             }
         )
     )
@@ -110,6 +110,22 @@ def test_collate_stacks_pixels_and_keeps_labels_per_image():
     assert batch["labels"][0]["boxes"].dtype == torch.float32
 
 
+def test_reordered_category_ids_map_by_position_not_value():
+    # ids 4 and 9 in a different order than the label space they define
+    dataset = build_dataset(
+        [
+            {"id": 1, "image_id": 0, "category_id": 9, "bbox": [10, 10, 50, 50]},
+            {"id": 2, "image_id": 0, "category_id": 4, "bbox": [80, 80, 50, 50]},
+        ],
+        categories=[{"id": 9, "name": "scissors"}, {"id": 4, "name": "scalpel"}],
+    )
+
+    print(f"category_map {dataset.category_map}  id2label {dataset.id2label}")
+    assert dataset.category_map == {4: 0, 9: 1}
+    assert dataset.id2label == {0: "scalpel", 1: "scissors"}
+    assert dataset[0]["class_labels"].tolist() == [1, 0]
+
+
 def test_canvas_stays_uint8_until_collate():
     dataset = build_dataset([{"id": 1, "image_id": 0, "category_id": 1, "bbox": [10, 10, 50, 50]}])
 
@@ -124,6 +140,7 @@ def test_unit_dataset():
         test_zero_area_box_raises,
         test_box_outside_the_frame_is_clipped,
         test_collate_stacks_pixels_and_keeps_labels_per_image,
+        test_reordered_category_ids_map_by_position_not_value,
         test_canvas_stays_uint8_until_collate,
     ]:
         print(f"\n{test.__name__}")
