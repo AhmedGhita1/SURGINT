@@ -1,6 +1,7 @@
 checkpoint: PekingU/rtdetr_r18vd_coco_o365
 input_size: [1024, 576]
 
+dataset_id: production_v1
 data_root: data/synthetic/production_v1/dataset
 run_dir: outputs/runs
 run_id: overfit20_bnfrozen

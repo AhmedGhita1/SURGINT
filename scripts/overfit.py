@@ -6,7 +6,8 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, Subset
 
-from surgint.config import load_config, save_config
+from surgint.artifacts import RunWriter, build_checkpoint_meta
+from surgint.config import load_config
 from surgint.dataset.coco import CocoDetection, collate
 from surgint.detection.model import load_model_with_new_head
 from surgint.detection.postprocessing import decode, to_frame_boxes
@@ -103,15 +104,42 @@ def main():
     model = load_model_with_new_head(config.checkpoint, data.id2label)
     metrics_fn = build_overfit_metrics_fn(data, score_loader, indices)
     trainer = Trainer(model, config, metrics_fn, DEVICE)
-    trainer.run_dir.mkdir(parents=True, exist_ok=True)
-    save_config(config, trainer.run_dir / "config.yaml")
+    run_dir = Path(config.run_dir) / config.run_id
+    writer = RunWriter(run_dir)
+    categories = [data.id2label[index] for index in sorted(data.id2label)]
+    meta = build_checkpoint_meta(config.input_size, data.id2label)
+    writer.initialize(config, categories, config.checkpoint)
 
     print(f"run {config.run_id}")
     print(f"{config.layouts} layouts, {len(subset)} frames, {config.epochs} epochs, lr {config.learning_rate}")
 
-    trainer.train(loader)
-    report_recall(trainer.best_dir, data, indices)
-    print(f"\nwrote {trainer.run_dir}")
+    for result in trainer.train(loader):
+        if result.is_best:
+            writer.save_checkpoint("best", model, meta)
+        writer.save_checkpoint("latest", model, meta, trainer.state_dict())
+        writer.append_log(result.as_dict())
+
+        line = (
+            f"epoch [{result.epoch}/{config.epochs}]  lr {result.lr:.2e}"
+            f"  train_loss {result.train_loss:.4f}"
+        )
+        line += "".join(f"  {name} {result.metrics[name]:.4f}" for name in config.metrics)
+        print(line + ("  best" if result.is_best else ""), flush=True)
+
+    writer.write_summary(
+        {
+            "run_id": config.run_id,
+            "mode": "train",
+            "epochs": trainer.epoch,
+            "best": {"epoch": trainer.best_epoch, **trainer.best_metrics},
+            "checkpoints": {
+                "best": str((run_dir / "best").resolve()),
+                "latest": str((run_dir / "latest").resolve()),
+            },
+        }
+    )
+    report_recall(run_dir / "best", data, indices)
+    print(f"\nwrote {run_dir}")
 
 
 if __name__ == "__main__":

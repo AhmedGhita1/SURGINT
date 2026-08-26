@@ -8,11 +8,13 @@ import yaml
 ADJECTIVES = "brisk calm dry eager fair glad keen lone mild neat proud quick rare sharp tidy warm".split()
 NOUNS = "adder bison crane dingo eagle falcon gecko heron ibis jackal koala lynx mink otter puma raven".split()
 
+
 @dataclass
 class Config:
     checkpoint: str = "PekingU/rtdetr_r18vd_coco_o365"
     input_size: list[int] = field(default_factory=lambda: [1024, 576])
 
+    dataset_id: str = "production_v1"
     data_root: str = "data/synthetic/production_v1/dataset"
     run_dir: str = "outputs/runs"
     run_id: str = ""
@@ -34,6 +36,8 @@ class Config:
     seed: int = 0
 
     def __post_init__(self):
+        if not self.dataset_id:
+            raise ValueError("dataset_id must not be empty")
         if len(self.input_size) != 2:
             raise ValueError(f"input_size must be [width, height], got {self.input_size}")
         if any(v <= 0 or v % 32 for v in self.input_size):

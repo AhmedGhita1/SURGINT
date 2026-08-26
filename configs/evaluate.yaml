@@ -1,0 +1,7 @@
+dataset_id: production_v1
+data_root: data/synthetic/production_v1/dataset
+run_dir: outputs/runs
+split: val
+
+metrics: [mAP50_95, mAP50, mAP75]
+select_metric: mAP50_95

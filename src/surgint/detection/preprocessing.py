@@ -7,9 +7,15 @@ import torch
 from PIL import Image
 
 PAD_VALUE = 114  # mid-gray
+RESCALE_FACTOR = 1 / 255
 
 
-def letterbox(frame: np.ndarray, width: int, height: int) -> tuple[np.ndarray, float]:
+def letterbox(
+    frame: np.ndarray,
+    width: int,
+    height: int,
+    pad_value: int = PAD_VALUE,
+) -> tuple[np.ndarray, float]:
     """aspect-preserving resize, padded to a fixed canvas"""
     source_height, source_width = frame.shape[:2]
     scale = min(width / source_width, height / source_height)
@@ -17,12 +23,12 @@ def letterbox(frame: np.ndarray, width: int, height: int) -> tuple[np.ndarray, f
         (round(source_width * scale), round(source_height * scale)), Image.BILINEAR
     )
 
-    canvas = np.full((height, width, 3), PAD_VALUE, dtype=np.uint8)
+    canvas = np.full((height, width, 3), pad_value, dtype=np.uint8)
     canvas[: resized.height, : resized.width] = np.asarray(resized)
     return canvas, scale
 
 
-def to_pixel_values(canvases, rescale_factor: float = 1 / 255) -> torch.Tensor:
+def to_pixel_values(canvases, rescale_factor: float = RESCALE_FACTOR) -> torch.Tensor:
     """canvases to a (B, 3, H, W) float batch"""
     batch = np.stack([np.asarray(canvas) for canvas in canvases])
     return torch.from_numpy(batch).permute(0, 3, 1, 2).float() * rescale_factor

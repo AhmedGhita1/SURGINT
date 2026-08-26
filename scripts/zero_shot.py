@@ -5,36 +5,44 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from surgint.artifacts import RunWriter
 from surgint.config import load_config
 from surgint.evaluation.recall import count_matches
 from surgint.inference.detector import InferencePipeline
 
 CONFIG = Path("configs/zero_shot.yaml")
-OUTPUT = Path("outputs/results/zero_shot.json")
 DEVICE = "cuda"
 THRESHOLDS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
 
 
-def load_ground_truth(annotations: Path) -> tuple[dict[int, str], dict[int, np.ndarray]]:
+def load_ground_truth(
+    annotations: Path,
+) -> tuple[dict[int, str], dict[int, np.ndarray], list[str]]:
     coco = json.loads(annotations.read_text())
     file_names = {image["id"]: image["file_name"] for image in coco["images"]}
+    categories = [
+        category["name"] for category in sorted(coco["categories"], key=lambda item: item["id"])
+    ]
 
     boxes = defaultdict(list)
     for annotation in coco["annotations"]:
         x, y, width, height = annotation["bbox"]
         boxes[annotation["image_id"]].append([x, y, x + width, y + height])
 
-    return file_names, {image_id: np.array(values) for image_id, values in boxes.items()}
+    return file_names, {image_id: np.array(values) for image_id, values in boxes.items()}, categories
 
 
 def main():
     config = load_config(CONFIG)
     data_root = Path(config.data_root)
 
-    file_names, ground_truth = load_ground_truth(
+    file_names, ground_truth, categories = load_ground_truth(
         data_root / "annotations" / f"instances_{config.split}.json"
     )
     pipeline = InferencePipeline(config.checkpoint, config.input_size, DEVICE)
+    run_dir = Path(config.run_dir) / config.run_id
+    writer = RunWriter(run_dir)
+    writer.initialize(config, categories, config.checkpoint)
 
     instruments = 0
     matches = defaultdict(int)
@@ -54,15 +62,10 @@ def main():
 
         if index % 50 == 0:
             print(f"{index}/{len(file_names)} frames")
+            writer.append_log({"frames": index})
 
     frames = len(file_names)
-    report = {
-        "checkpoint": config.checkpoint,
-        "input_size": config.input_size,
-        "data_root": config.data_root,
-        "split": config.split,
-        "frames": frames,
-        "instruments": instruments,
+    metrics = {
         "iou_threshold": config.iou_threshold,
         "class_agnostic": True,
         "by_score_threshold": {
@@ -73,15 +76,24 @@ def main():
             for threshold in THRESHOLDS
         },
     }
+    report = {
+        "run_id": config.run_id,
+        "mode": "eval",
+        "checkpoint": config.checkpoint,
+        "split": config.split,
+        "frames": frames,
+        "instruments": instruments,
+        "metrics": metrics,
+    }
+    writer.append_log({"frames": frames, "metrics": metrics})
+    writer.write_summary(report)
 
     print(f"\n{frames} frames, {instruments} instruments, recall at IoU {config.iou_threshold}\n")
     print(f"{'score':>6}  {'recall':>7}  {'det/frame':>10}")
-    for threshold, values in report["by_score_threshold"].items():
+    for threshold, values in metrics["by_score_threshold"].items():
         print(f"{threshold:>6}  {values['recall']:>7.3f}  {values['detections_per_frame']:>10.2f}")
 
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(report, indent=2) + "\n")
-    print(f"\nwrote {OUTPUT}")
+    print(f"\nwrote {run_dir}")
 
 
 if __name__ == "__main__":
