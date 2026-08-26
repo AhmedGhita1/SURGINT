@@ -19,6 +19,8 @@ class Config:
     split: str = "val"
     layouts: int = 0
     iou_threshold: float = 0.5
+    metrics: list[str] = field(default_factory=lambda: ["mAP50_95", "mAP50", "mAP75"])
+    select_metric: str = "mAP50"
 
     epochs: int = 20
     batch_size: int = 8
@@ -38,6 +40,8 @@ class Config:
             raise ValueError(f"input_size must be positive and divisible by 32, got {self.input_size}")
         if self.batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
+        if self.select_metric not in self.metrics:
+            raise ValueError(f"select_metric {self.select_metric} is not in metrics {self.metrics}")
         if self.schedule not in ("cosine", "constant"):
             raise ValueError(f"schedule must be cosine or constant, got {self.schedule}")
         if not self.run_id:
