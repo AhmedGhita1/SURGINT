@@ -3,6 +3,7 @@ torchvision==0.19.1
 transformers==4.46.3
 accelerate==1.1.1
 pycocotools==2.0.8
+tqdm==4.68.3
 pillow==10.4.0
 pyyaml==6.0.2
 numpy==1.26.4
