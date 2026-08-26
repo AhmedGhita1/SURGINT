@@ -65,6 +65,8 @@ class CocoDetection(Dataset):
             "canvas": canvas,
             "boxes": to_normalized_cxcywh(boxes, self.width, self.height),
             "class_labels": class_labels,
+            "scale": scale,
+            "frame_size": frame.shape[:2],
         }
 
 
@@ -72,6 +74,9 @@ def collate(batch: list[dict]) -> dict:
     """uint8 canvases become one float batch here, so workers ship the smaller array"""
     return {
         "pixel_values": to_pixel_values([sample["canvas"] for sample in batch]),
+        "image_ids": [sample["image_id"] for sample in batch],
+        "scales": [sample["scale"] for sample in batch],
+        "frame_sizes": [sample["frame_size"] for sample in batch],
         "labels": [
             {
                 "class_labels": torch.from_numpy(sample["class_labels"]),
