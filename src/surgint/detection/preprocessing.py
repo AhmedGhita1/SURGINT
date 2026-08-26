@@ -32,6 +32,16 @@ def letterbox_boxes(boxes, scale: float) -> np.ndarray:
     return np.asarray(boxes, dtype=float) * scale
 
 
+def to_normalized_cxcywh(boxes, width: int, height: int) -> np.ndarray:
+    """canvas xyxy to the normalized cxcywh the detection loss expects"""
+    boxes = np.asarray(boxes, dtype=float).reshape(-1, 4)
+    x1, y1, x2, y2 = boxes.T
+    return np.stack(
+        [(x1 + x2) / 2 / width, (y1 + y2) / 2 / height, (x2 - x1) / width, (y2 - y1) / height],
+        axis=-1,
+    )
+
+
 def unletterbox_boxes(boxes, scale: float) -> np.ndarray:
     """canvas pixels to camera pixels"""
     return np.asarray(boxes, dtype=float) / scale
