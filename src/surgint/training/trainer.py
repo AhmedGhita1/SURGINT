@@ -1,5 +1,6 @@
 import json
 import math
+import time
 from pathlib import Path
 
 import torch
@@ -97,14 +98,20 @@ class Trainer:
         for epoch in range(self.epoch + 1, self.config.epochs + 1):
             self.epoch = epoch
             metrics = {"epoch": epoch, "lr": self.scheduler.get_last_lr()[-1]}
+            started = time.perf_counter()
             metrics["train_loss"] = self.train_epoch(train_loader)
             if val_loader is not None:
                 metrics["val_loss"] = self.validate(val_loader)
 
+            elapsed = time.perf_counter() - started
+            remaining = elapsed * (self.config.epochs - epoch)
+
             self.history.append(metrics)
-            line = f"epoch {epoch:>4}  lr {metrics['lr']:.2e}  train_loss {metrics['train_loss']:.4f}"
+            line = (f"epoch [{epoch}/{self.config.epochs}]  lr {metrics['lr']:.2e}"
+                    f"  train_loss {metrics['train_loss']:.4f}")
             if "val_loss" in metrics:
                 line += f"  val_loss {metrics['val_loss']:.4f}"
+            line += f"  {elapsed:.0f}s  eta {remaining / 60:.0f}m"
             print(line, flush=True)
             self.save()
 
@@ -134,7 +141,8 @@ class Trainer:
                     "input_size": self.config.input_size,
                     "id2label": self.model.config.id2label,
                     "best_loss": self.best_loss,
-                    "history": self.history,
+                    "last_loss": self.history[-1].get("val_loss", self.history[-1]["train_loss"])
+                    self.history: self.history,
                 },
                 indent=2,
             )
