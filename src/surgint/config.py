@@ -9,6 +9,7 @@ class Config:
     input_size: list[int] = field(default_factory=lambda: [1024, 576])
 
     data_root: str = "data/synthetic/production_v1/dataset"
+    run_dir: str = "outputs/runs"
     split: str = "val"
     iou_threshold: float = 0.5
 

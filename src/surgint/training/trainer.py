@@ -30,10 +30,10 @@ def to_device(batch: dict, device: str) -> tuple[torch.Tensor, list[dict]]:
 
 
 class Trainer:
-    def __init__(self, model: torch.nn.Module, config: Config, run_dir: Path, device: str = "cuda"):
+    def __init__(self, model: torch.nn.Module, config: Config, device: str = "cuda"):
         self.model = model.to(device)
         self.config = config
-        self.run_dir = Path(run_dir)
+        self.run_dir = Path(config.run_dir)
         self.device = device
 
         self.optimizer = AdamW(parameter_groups(self.model, config), weight_decay=config.weight_decay)
