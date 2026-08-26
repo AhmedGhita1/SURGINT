@@ -1,7 +1,12 @@
+import secrets
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 import yaml
+
+ADJECTIVES = "brisk calm dry eager fair glad keen lone mild neat proud quick rare sharp tidy warm".split()
+NOUNS = "adder bison crane dingo eagle falcon gecko heron ibis jackal koala lynx mink otter puma raven".split()
 
 @dataclass
 class Config:
@@ -10,6 +15,7 @@ class Config:
 
     data_root: str = "data/synthetic/production_v1/dataset"
     run_dir: str = "outputs/runs"
+    run_id: str = ""
     split: str = "val"
     iou_threshold: float = 0.5
 
@@ -28,6 +34,12 @@ class Config:
             raise ValueError(f"input_size must be positive and divisible by 32, got {self.input_size}")
         if self.batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
+
+    def set_run_id(self, run_id: str | None = None) -> str:
+        """name the run; secrets keeps the name independent of the seeded rng"""
+        name = f"{secrets.choice(ADJECTIVES)}-{secrets.choice(NOUNS)}"
+        self.run_id = run_id or f"{name}_{datetime.now():%Y%m%d_%H%M}"
+        return self.run_id
 
 
 def load_config(path: str | Path) -> Config:

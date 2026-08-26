@@ -33,7 +33,7 @@ class Trainer:
     def __init__(self, model: torch.nn.Module, config: Config, device: str = "cuda"):
         self.model = model.to(device)
         self.config = config
-        self.run_dir = Path(config.run_dir)
+        self.run_dir = Path(config.run_dir) / config.run_id
         self.device = device
 
         self.optimizer = AdamW(parameter_groups(self.model, config), weight_decay=config.weight_decay)
