@@ -17,6 +17,7 @@ class Config:
     run_dir: str = "outputs/runs"
     run_id: str = ""
     split: str = "val"
+    layouts: int = 0
     iou_threshold: float = 0.5
 
     epochs: int = 20
@@ -25,6 +26,9 @@ class Config:
     backbone_learning_rate: float = 1e-5
     weight_decay: float = 1e-4
     warmup_steps: int = 500
+    schedule: str = "cosine"
+    grad_clip: float = 0.1
+    freeze_batchnorm: bool = True
     seed: int = 0
 
     def __post_init__(self):
@@ -34,6 +38,8 @@ class Config:
             raise ValueError(f"input_size must be positive and divisible by 32, got {self.input_size}")
         if self.batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
+        if self.schedule not in ("cosine", "constant"):
+            raise ValueError(f"schedule must be cosine or constant, got {self.schedule}")
         if not self.run_id:
             self.set_run_id()
 

@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 
 import torch
@@ -20,8 +21,26 @@ def parameter_groups(model: torch.nn.Module, config: Config) -> list[dict]:
     ]
 
 
-def warmup_schedule(optimizer: AdamW, warmup_steps: int) -> LambdaLR:
-    return LambdaLR(optimizer, lambda step: min(1.0, (step + 1) / warmup_steps) if warmup_steps else 1.0)
+def build_schedule(optimizer: AdamW, config: Config, total_steps: int) -> LambdaLR:
+    """linear warmup, then cosine decay to zero over the remaining steps"""
+    warmup = config.warmup_steps
+
+    def factor(step: int) -> float:
+        if warmup and step < warmup:
+            return (step + 1) / warmup
+        if config.schedule == "constant":
+            return 1.0
+        progress = (step - warmup) / max(1, total_steps - warmup)
+        return 0.5 * (1 + math.cos(math.pi * min(1.0, progress)))
+
+    return LambdaLR(optimizer, factor)
+
+
+def freeze_batchnorm(model: torch.nn.Module) -> None:
+    """eval mode keeps the pretrained running statistics, so training and inference match"""
+    for module in model.modules():
+        if isinstance(module, torch.nn.BatchNorm2d):
+            module.eval()
 
 
 def to_device(batch: dict, device: str) -> tuple[torch.Tensor, list[dict]]:
@@ -37,18 +56,23 @@ class Trainer:
         self.device = device
 
         self.optimizer = AdamW(parameter_groups(self.model, config), weight_decay=config.weight_decay)
-        self.scheduler = warmup_schedule(self.optimizer, config.warmup_steps)
+        self.scheduler: LambdaLR | None = None
+        self.scheduler_state: dict | None = None
         self.history: list[dict] = []
         self.epoch = 0
+        self.best_loss = float("inf")
 
     def train_epoch(self, loader: DataLoader) -> float:
         self.model.train()
+        if self.config.freeze_batchnorm:
+            freeze_batchnorm(self.model)
         total = 0.0
         for batch in loader:
             pixel_values, labels = to_device(batch, self.device)
             loss = self.model(pixel_values=pixel_values, labels=labels).loss
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_clip)
             self.optimizer.step()
             self.scheduler.step()
             self.optimizer.zero_grad()
@@ -66,16 +90,28 @@ class Trainer:
 
     def train(self, train_loader: DataLoader, val_loader: DataLoader | None = None) -> list[dict]:
         """train for epochs, save train history after each epoch."""
+        self.scheduler = build_schedule(self.optimizer, self.config, self.config.epochs * len(train_loader))
+        if self.scheduler_state:
+            self.scheduler.load_state_dict(self.scheduler_state)
+
         for epoch in range(self.epoch + 1, self.config.epochs + 1):
             self.epoch = epoch
-            metrics = {"epoch": epoch, "train_loss": self.train_epoch(train_loader)}
+            metrics = {"epoch": epoch, "lr": self.scheduler.get_last_lr()[-1]}
+            metrics["train_loss"] = self.train_epoch(train_loader)
             if val_loader is not None:
                 metrics["val_loss"] = self.validate(val_loader)
 
             self.history.append(metrics)
-            print("  ".join(f"{key} {value:.4f}" if key != "epoch" else f"epoch {value}"
-                            for key, value in metrics.items()))
+            line = f"epoch {epoch:>4}  lr {metrics['lr']:.2e}  train_loss {metrics['train_loss']:.4f}"
+            if "val_loss" in metrics:
+                line += f"  val_loss {metrics['val_loss']:.4f}"
+            print(line, flush=True)
             self.save()
+
+            loss = metrics.get("val_loss", metrics["train_loss"])
+            if loss < self.best_loss:
+                self.best_loss = loss
+                self.model.save_pretrained(self.run_dir / "best")
         return self.history
 
     def save(self) -> None:
@@ -85,6 +121,7 @@ class Trainer:
         torch.save(
             {
                 "epoch": self.epoch,
+                "best_loss": self.best_loss,
                 "optimizer": self.optimizer.state_dict(),
                 "scheduler": self.scheduler.state_dict(),
                 "history": self.history,
@@ -96,6 +133,7 @@ class Trainer:
                 {
                     "input_size": self.config.input_size,
                     "id2label": self.model.config.id2label,
+                    "best_loss": self.best_loss,
                     "history": self.history,
                 },
                 indent=2,
@@ -107,6 +145,7 @@ class Trainer:
         """restore optimizer, scheduler, epoch and history; load the weights separately"""
         state = torch.load(self.run_dir / "training_state.pt", map_location=self.device, weights_only=False)
         self.optimizer.load_state_dict(state["optimizer"])
-        self.scheduler.load_state_dict(state["scheduler"])
+        self.scheduler_state = state["scheduler"]
         self.history = state["history"]
         self.epoch = state["epoch"]
+        self.best_loss = state["best_loss"]
