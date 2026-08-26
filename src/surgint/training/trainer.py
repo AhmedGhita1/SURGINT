@@ -61,7 +61,6 @@ class Trainer:
         self.scheduler_state: dict | None = None
         self.history: list[dict] = []
         self.epoch = 0
-        self.best_loss = float("inf")
 
     def train_epoch(self, loader: DataLoader) -> float:
         self.model.train()
@@ -115,11 +114,6 @@ class Trainer:
             line += f"  {rate:.2f} it/s  eta {remaining / 60:.0f}m"
             print(line, flush=True)
             self.save()
-
-            loss = metrics.get("val_loss", metrics["train_loss"])
-            if loss < self.best_loss:
-                self.best_loss = loss
-                self.model.save_pretrained(self.run_dir / "best")
         return self.history
 
     def save(self) -> None:
@@ -129,7 +123,6 @@ class Trainer:
         torch.save(
             {
                 "epoch": self.epoch,
-                "best_loss": self.best_loss,
                 "optimizer": self.optimizer.state_dict(),
                 "scheduler": self.scheduler.state_dict(),
                 "history": self.history,
@@ -143,8 +136,7 @@ class Trainer:
                 {
                     "input_size": self.config.input_size,
                     "id2label": self.model.config.id2label,
-                    "best_loss": self.best_loss,
-                    "last_loss": last_loss,
+                        "last_loss": last_loss,
                     "history": self.history,
                 },
                 indent=2,
@@ -159,4 +151,3 @@ class Trainer:
         self.scheduler_state = state["scheduler"]
         self.history = state["history"]
         self.epoch = state["epoch"]
-        self.best_loss = state["best_loss"]
