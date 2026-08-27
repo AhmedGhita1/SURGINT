@@ -4,7 +4,8 @@ import numpy as np
 import torch
 
 from surgint.config import Config
-from surgint.inference.detector import DetectionResult, InferencePipeline
+from surgint.inference import DETOutput
+from surgint.inference.detector import InferencePipeline
 
 FRAME = np.zeros((720, 1280, 3), dtype=np.uint8)
 
@@ -19,7 +20,7 @@ def test_predict_returns_the_contract():
     result = build_pipeline().predict(FRAME, 0.0)
 
     print(f"detections: {len(result.boxes)}")
-    assert isinstance(result, DetectionResult)
+    assert isinstance(result, DETOutput)
     assert not isinstance(result.boxes, torch.Tensor)
     assert result.boxes.dtype == np.float32
     assert len(result.boxes) == len(result.scores) == len(result.class_ids)

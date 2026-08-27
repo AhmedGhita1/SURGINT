@@ -12,9 +12,10 @@ from surgint.dataset.coco import CocoDetection, collate
 from surgint.detection.model import load_model_with_new_head
 from surgint.detection.postprocessing import decode, to_frame_boxes
 from surgint.evaluation import MetricsFn
-from surgint.evaluation.detection import coco_predictions, evaluate
-from surgint.evaluation.recall import count_matches
-from surgint.inference.detector import DetectionResult, InferencePipeline
+from surgint.evaluation.coco_eval import coco_evaluate, coco_predictions
+from surgint.evaluation.metrics import count_matches
+from surgint.inference import DETOutput
+from surgint.inference.detector import InferencePipeline
 from surgint.training.trainer import Trainer
 
 CONFIG = Path("configs/overfit20.yaml")
@@ -64,10 +65,10 @@ def build_overfit_metrics_fn(dataset: CocoDetection, loader: DataLoader, indices
                 batch["scales"],
                 batch["frame_sizes"],
             ):
-                result = DetectionResult(to_frame_boxes(boxes, scale, frame_size), scores, class_ids)
+                result = DETOutput(to_frame_boxes(boxes, scale, frame_size), scores, class_ids)
                 predictions += coco_predictions(image_id, result, to_category)
 
-        return evaluate(annotations, predictions)
+        return coco_evaluate(annotations, predictions)
 
     return metrics_fn
 

@@ -28,7 +28,7 @@ def build_annotations() -> dict:
 
 
 def result_from(boxes: list[list[float]], labels: list[int]):
-    """the fields coco_evaluate() reads off a DetectionResult"""
+    """the fields coco_evaluate() reads off a DETOutput"""
     xyxy = [[x, y, x + w, y + h] for x, y, w, h in boxes]
     return SimpleNamespace(
         boxes=np.array(xyxy, dtype=np.float32),

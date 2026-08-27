@@ -7,7 +7,7 @@ from PIL import Image
 
 from surgint.artifacts import RunWriter
 from surgint.config import load_config
-from surgint.evaluation.recall import count_matches
+from surgint.evaluation.metrics import count_matches
 from surgint.inference.detector import InferencePipeline
 
 CONFIG = Path("configs/zero_shot.yaml")

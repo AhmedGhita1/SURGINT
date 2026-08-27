@@ -6,13 +6,14 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
-from surgint.inference.detector import DetectionResult, InferencePipeline
+from surgint.inference import DETOutput
+from surgint.inference.detector import InferencePipeline
 
 BOX_COLOR = (255, 64, 0)
 DEFAULT_CHECKPOINT = "PekingU/rtdetr_r18vd_coco_o365"
 
 
-def draw_detections(frame: np.ndarray, result: DetectionResult, id2label: dict[int, str]) -> Image.Image:
+def draw_detections(frame: np.ndarray, result: DETOutput, id2label: dict[int, str]) -> Image.Image:
     overlay = Image.fromarray(frame)
     canvas = ImageDraw.Draw(overlay)
     for box, score, class_id in zip(result.boxes, result.scores, result.class_ids):

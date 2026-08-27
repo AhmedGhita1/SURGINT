@@ -6,7 +6,7 @@ from surgint.dataset.coco import CocoDetection
 from surgint.detection.postprocessing import decode, to_frame_boxes
 from surgint.evaluation import MetricsFn
 from surgint.evaluation.coco_eval import coco_evaluate, coco_predictions
-from surgint.inference.detector import DetectionResult
+from surgint.inference import DETOutput
 
 
 def iou_matrix(boxes: np.ndarray, others: np.ndarray) -> np.ndarray:
@@ -61,7 +61,7 @@ def build_metrics_fn(dataset: CocoDetection, loader: DataLoader) -> MetricsFn:
             for (boxes, scores, class_ids), image_id, scale, frame_size in zip(
                 detections, batch["image_ids"], batch["scales"], batch["frame_sizes"]
             ):
-                result = DetectionResult(to_frame_boxes(boxes, scale, frame_size), scores, class_ids)
+                result = DETOutput(to_frame_boxes(boxes, scale, frame_size), scores, class_ids)
                 predictions += coco_predictions(image_id, result, to_category)
 
         return coco_evaluate(dataset.annotations, predictions)

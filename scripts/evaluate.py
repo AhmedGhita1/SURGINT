@@ -7,7 +7,7 @@ from PIL import Image
 from surgint.artifacts import RunWriter
 from surgint.config import load_config
 from surgint.dataset.coco import CocoDetection
-from surgint.evaluation.detection import coco_predictions, evaluate
+from surgint.evaluation.coco_eval import coco_evaluate, coco_predictions
 from surgint.inference.detector import InferencePipeline
 
 DEVICE = "cuda"
@@ -48,7 +48,7 @@ def main():
             print(f"{index}/{len(data)} frames")
             writer.append_log({"frames": index})
 
-    metrics = evaluate(data.annotations, predictions)
+    metrics = coco_evaluate(data.annotations, predictions)
     writer.append_log({"frames": len(data), "metrics": metrics})
     writer.write_summary(
         {

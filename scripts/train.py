@@ -7,7 +7,7 @@ from surgint.artifacts import RunWriter, build_checkpoint_meta
 from surgint.config import load_config
 from surgint.dataset.coco import CocoDetection, collate
 from surgint.detection.model import load_model_with_new_head
-from surgint.evaluation.detection import build_metrics_fn
+from surgint.evaluation.metrics import build_metrics_fn
 from surgint.training.trainer import Trainer
 
 CONFIG = Path("configs/train.yaml")
