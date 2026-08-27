@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -13,13 +12,7 @@ from surgint.detection.preprocessing import (
     letterbox,
     to_pixel_values,
 )
-
-
-@dataclass(frozen=True)
-class DetectionResult:
-    boxes: np.ndarray  # xyxy in original frame pixels
-    scores: np.ndarray
-    class_ids: np.ndarray
+from surgint.inference import DETOutput
 
 
 class Detector:
@@ -75,11 +68,11 @@ class InferencePipeline:
         self.detector = Detector(checkpoint, device)
         self.id2label = artifact_labels or self.detector.id2label
 
-    def predict(self, frame: np.ndarray, score_threshold: float) -> DetectionResult:
+    def predict(self, frame: np.ndarray, score_threshold: float) -> DETOutput:
         canvas, scale = letterbox(frame, self.width, self.height, self.pad_value)
         logits, pred_boxes = self.detector(to_pixel_values([canvas], self.rescale_factor))
         boxes, scores, class_ids = decode(
             logits, pred_boxes, self.width, self.height, score_threshold
         )[0]
 
-        return DetectionResult(to_frame_boxes(boxes, scale, frame.shape[:2]), scores, class_ids)
+        return DETOutput(to_frame_boxes(boxes, scale, frame.shape[:2]), scores, class_ids)
