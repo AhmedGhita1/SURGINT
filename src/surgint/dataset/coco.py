@@ -6,82 +6,99 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
-from surgint.detection.preprocessing import (
-    letterbox,
-    letterbox_boxes,
-    to_normalized_cxcywh,
-    to_pixel_values,
-)
+
+TASKS = ("detection-only", "detection-tracking")
 
 
-class CocoDetection(Dataset):
-    def __init__(self, data_root: str | Path, split: str, input_size: list[int]):
-        root = Path(data_root)
-        self.images = root / split
-        self.width, self.height = input_size
+class SurgintDataset(Dataset):
+    def __init__(
+            self, root: str | Path,
+            split: str,
+            task: str,
+            transform=None,
+            ):
+        
+        if task not in TASKS:
+            raise ValueError(f"task must be one of {TASKS}, got {task!r}")
 
-        annotations = json.loads((root / "annotations" / f"instances_{split}.json").read_text())
-        self.annotations = annotations
+        self.root = Path(root)
+        self.split = Path(split)
 
-        categories = sorted(annotations["categories"], key=lambda category: category["id"])
-        self.category_map = {category["id"]: index for index, category in enumerate(categories)}
-        self.id2label = {index: category["name"] for index, category in enumerate(categories)}
 
-        boxes: dict[int, list] = {image["id"]: [] for image in annotations["images"]}
-        labels: dict[int, list] = {image["id"]: [] for image in annotations["images"]}
-        for annotation in annotations["annotations"]:
+        self.task = task
+        self.transform = transform
+        tracking = task == "detection-tracking"
+
+        annos_path = self.root / "annotations" / self.split.parent / f"instances_{self.split.name}.json"
+        self.raw = json.loads(annos_path.read_text())
+
+        classes = sorted(self.raw["categories"], key=lambda category: category["id"])
+
+        # map the contiguous class ids to (category id, category name)
+        self.mappings = {
+            class_id: (category["id"], category["name"])
+            for class_id, category in enumerate(classes)
+        }
+        category2class = {class_name: class_id for class_id, (class_name, _) in self.mappings.items()}
+
+        boxes = {image["id"]: [] for image in self.raw["images"]}
+        classes = {image["id"]: [] for image in self.raw["images"]}
+        tracks = {image["id"]: [] for image in self.raw["images"]}
+        
+        for annotation in self.raw["annotations"]:
             x, y, width, height = annotation["bbox"]
             boxes[annotation["image_id"]].append([x, y, x + width, y + height])
-            labels[annotation["image_id"]].append(self.category_map[annotation["category_id"]])
+
+            classes[annotation["image_id"]].append(category2class[annotation["category_id"]])
+
+            if tracking:
+                if "track_id" not in annotation:
+                    raise ValueError(f"{annos_path.name} has no track_id; {task} requires it")
+                tracks[annotation["image_id"]].append(annotation["track_id"])
 
         self.samples = [
             (
                 image["id"],
                 image["file_name"],
-                np.array(boxes[image["id"]], dtype=float).reshape(-1, 4),
-                np.array(labels[image["id"]], dtype=np.int64),
+                np.array(boxes[image["id"]], dtype=np.float32).reshape(-1, 4),
+                np.array(classes[image["id"]], dtype=np.int64),
+                np.array(tracks[image["id"]], dtype=np.int64) if tracking else None,
             )
-            for image in annotations["images"]
+            for image in self.raw["images"]
         ]
 
     def __len__(self) -> int:
         return len(self.samples)
 
     def __getitem__(self, index: int) -> dict:
-        image_id, file_name, boxes, class_labels = self.samples[index]
-        frame = np.asarray(Image.open(self.images / file_name).convert("RGB"))
+        image_id, file_name, boxes, class_ids, track_ids = self.samples[index]
+        frame = np.asarray(Image.open(self.root / self.split / file_name).convert("RGB"))
 
-        canvas, scale = letterbox(frame, self.width, self.height)
-        boxes = letterbox_boxes(boxes, scale)
-        boxes[:, 0::2] = boxes[:, 0::2].clip(0, self.width)
-        boxes[:, 1::2] = boxes[:, 1::2].clip(0, self.height)
+        if self.transform is None:
+            sample = {"frame": frame, "boxes": boxes, "class_ids": class_ids}
+        else:
+            sample = self.transform(frame, boxes, class_ids)
 
-        degenerate = (boxes[:, 2] <= boxes[:, 0]) | (boxes[:, 3] <= boxes[:, 1])
-        if degenerate.any():
-            raise ValueError(f"{file_name} has {degenerate.sum()} zero-area boxes after letterbox")
+        sample["image_id"] = image_id
+        if track_ids is not None:
+            sample["track_ids"] = track_ids
 
-        return {
-            "image_id": image_id,
-            "canvas": canvas,
-            "boxes": to_normalized_cxcywh(boxes, self.width, self.height),
-            "class_labels": class_labels,
-            "scale": scale,
-            "frame_size": frame.shape[:2],
-        }
+        return sample
 
 
 def collate(batch: list[dict]) -> dict:
-    """uint8 canvases become one float batch here, so workers ship the smaller array"""
+    labels = [
+        {
+            "class_labels": torch.as_tensor(sample["class_ids"], dtype=torch.int64),
+            "boxes": torch.as_tensor(sample["boxes"], dtype=torch.float32),
+        }
+        for sample in batch
+    ]
+
     return {
-        "pixel_values": to_pixel_values([sample["canvas"] for sample in batch]),
+        "pixel_values": torch.stack([sample["pixel_values"] for sample in batch]),
         "image_ids": [sample["image_id"] for sample in batch],
         "scales": [sample["scale"] for sample in batch],
         "frame_sizes": [sample["frame_size"] for sample in batch],
-        "labels": [
-            {
-                "class_labels": torch.from_numpy(sample["class_labels"]),
-                "boxes": torch.from_numpy(sample["boxes"]).float(),
-            }
-            for sample in batch
-        ],
+        "labels": labels,
     }
