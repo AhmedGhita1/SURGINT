@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-from surgint.detection.preprocessing import (
+from surgint.dataset.transform import (
     PAD_VALUE,
     letterbox,
     letterbox_boxes,

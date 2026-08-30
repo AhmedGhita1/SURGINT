@@ -6,7 +6,7 @@ import yaml
 
 from surgint.detection.model import load_model
 from surgint.detection.postprocessing import decode, to_frame_boxes
-from surgint.detection.preprocessing import (
+from surgint.dataset.transform import (
     PAD_VALUE,
     RESCALE_FACTOR,
     letterbox,

@@ -5,7 +5,7 @@ import torch
 import yaml
 
 from surgint.config import Config, save_config
-from surgint.detection.preprocessing import PAD_VALUE, RESCALE_FACTOR
+from surgint.dataset.transform import PAD_VALUE, RESCALE_FACTOR
 
 
 def build_checkpoint_meta(input_size: list[int], id2label: dict[int, str]) -> dict:

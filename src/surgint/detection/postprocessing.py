@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from surgint.detection.preprocessing import unletterbox_boxes
+from surgint.dataset.transform import unletterbox_boxes
 
 
 def decode(
