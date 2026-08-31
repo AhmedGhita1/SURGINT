@@ -2,8 +2,8 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from surgint.dataset.coco import CocoDetection
-from surgint.detection.postprocessing import decode, to_frame_boxes
+from surgint.dataset.coco import SurgintDataset
+from surgint.model.decode import decode
 from surgint.evaluation import MetricsFn
 from surgint.evaluation.coco_eval import coco_evaluate, coco_predictions
 from surgint.inference import DETOutput
@@ -44,7 +44,7 @@ def count_matches(predicted: np.ndarray, ground_truth: np.ndarray, iou_threshold
     return matches
 
 
-def build_metrics_fn(dataset: CocoDetection, loader: DataLoader) -> MetricsFn:
+def build_metrics_fn(dataset: SurgintDataset, loader: DataLoader) -> MetricsFn:
     """COCO mAP over a complete dataset, through the inference postprocessing."""
     to_category = {label: category for category, label in dataset.category_map.items()}
     width, height = dataset.width, dataset.height
