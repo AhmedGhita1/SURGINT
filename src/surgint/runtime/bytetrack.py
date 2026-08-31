@@ -2,9 +2,8 @@ from enum import Enum
 
 import numpy as np
 
-from surgint.inference import DETOutput
-from surgint.tracking import MOTOutput
-from surgint.model.kalman import KalmanFilter
+from surgint.model import Detections
+from surgint.runtime.kalman import KalmanFilter
 
 
 class TrackState(Enum):
@@ -67,7 +66,7 @@ class ByteTrack:
     ):
         raise NotImplementedError
 
-    def update(self, detections: DETOutput) -> MOTOutput:
+    def update(self, detections: Detections) -> Detections:
         """one frame. high scoring boxes associate first, then low scoring ones rescue lost tracks"""
         raise NotImplementedError
 
