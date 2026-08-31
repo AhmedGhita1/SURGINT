@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, Iterator, Union
 
 import torch
@@ -115,6 +116,14 @@ class Trainer:
                 self.best_metrics = dict(metrics)
 
             yield EpochResult(epoch, lr, train_loss, metrics, is_best)
+
+    def save(self, checkpoint: Union[str, Path]) -> None:
+        ckpt_path = Path(checkpoint) / "training_state.pt"
+        torch.save(self.state_dict(), ckpt_path)
+
+    def load(self, checkpoint: Union[str, Path]) -> None:
+        ckpt_path = Path(checkpoint) / "training_state.pt"
+        self.load_state_dict(torch.load(ckpt_path, weights_only=True))
 
     def state_dict(self) -> Dict:
         return {
