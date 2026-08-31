@@ -4,7 +4,7 @@ import numpy as np
 
 from surgint.inference import DETOutput
 from surgint.tracking import MOTOutput
-from surgint.tracking.kalman import KalmanFilter
+from surgint.model.kalman import KalmanFilter
 
 
 class TrackState(Enum):
