@@ -5,25 +5,6 @@ import torch
 import yaml
 
 from surgint.config import Config, save_config
-from surgint.dataset.transform import PAD_COLOR, RESCALE_FACTOR
-
-
-def build_checkpoint_meta(input_size: list[int], id2label: dict[int, str]) -> dict:
-    """Build the run metadata."""
-    label_ids = sorted(id2label)
-    if label_ids != list(range(len(label_ids))):
-        raise ValueError(f"label ids must be contiguous from zero, got {label_ids}")
-
-    return {
-        "input_size": input_size,
-        "color_space": "RGB",
-        "resize": "letterbox",
-        "letterbox_anchor": "top_left",
-        "pad_color": PAD_COLOR,
-        "rescale_factor": RESCALE_FACTOR,
-        "normalize": False,
-        "labels": [id2label[index] for index in label_ids],
-    }
 
 
 class RunWriter:
