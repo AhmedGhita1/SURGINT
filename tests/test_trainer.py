@@ -148,24 +148,27 @@ def test_unit_train_loop():
     assert [r.epoch for r in results] == [1, 2, 3]
 
     # interval 2 skips epoch 1; the last epoch always validates
-    assert results[0].metrics == {}, "epoch 1 should be skipped by val_interval"
-    assert results[1].metrics, "epoch 2 should validate"
-    assert results[2].metrics, "the last epoch must always validate"
+    assert results[0].val is None, "a skipped epoch must say it did not run, not report nothing"
+    assert results[1].val, "epoch 2 should validate"
+    assert results[2].val, "the last epoch must always validate"
 
     # a skipped epoch cannot be best
     assert not results[0].is_best, "an unscored epoch must not be selected"
 
     # best tracks the highest select_metric seen
-    scored = [r for r in results if r.metrics]
-    best = max(scored, key=lambda r: r.metrics[trainer.config.select_metric])
+    scored = [r for r in results if r.val]
+    best = max(scored, key=lambda r: r.val[trainer.config.select_metric])
     assert trainer.best_epoch == best.epoch, f"got {trainer.best_epoch}"
-    assert trainer.best_score == best.metrics[trainer.config.select_metric]
+    assert trainer.best_score == best.val[trainer.config.select_metric]
+    assert trainer.best_val == best.val, "the trainer keeps the best epoch's validation"
 
-    # the epoch record is one flat json line, so the nested per class AP is dropped
+    # the epoch record is one json line, per class AP included
     row = results[2].as_dict()
-    assert "per_class" not in row, f"got {sorted(row)}"
-    assert set(row) == {"epoch", "lr", "train_loss", *trainer.config.metrics}
+    assert set(row) == {"epoch", "lr", "train_loss", "per_class", *trainer.config.metrics}
     json.dumps(row)
+
+    # a skipped epoch writes the training half only
+    assert set(results[0].as_dict()) == {"epoch", "lr", "train_loss"}
 
 
 def test_unit_state():
@@ -176,7 +179,7 @@ def test_unit_state():
     state = trainer.state_dict()
 
     assert set(state) == {
-        "epoch", "best_score", "best_epoch", "best_metrics", "optimizer", "scheduler"
+        "epoch", "best_score", "best_epoch", "best_val", "optimizer", "scheduler"
     }, f"got {sorted(state)}"
 
     # the trainer writes and reads its own state, next to the weights

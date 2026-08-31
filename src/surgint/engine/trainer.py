@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Iterator, Union
+from typing import Dict, Iterator, Optional, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -17,18 +17,12 @@ from surgint.model.detector import Detector
 @dataclass(frozen=True)
 class EpochResult:
     epoch: int
-    lr: float
-    train_loss: float
-    metrics: Dict[str, float] = field(default_factory=dict)
+    train: Dict[str, float]
+    val: Optional[Dict] = None
     is_best: bool = False
 
-    def as_dict(self) -> Dict[str, Union[int, float]]:
-        return {
-            "epoch": self.epoch,
-            "lr": self.lr,
-            "train_loss": self.train_loss,
-            **{name: value for name, value in self.metrics.items() if name != "per_class"},
-        }
+    def as_dict(self) -> Dict:
+        return {"epoch": self.epoch, **self.train, **(self.val or {})}
 
 
 class Trainer:
@@ -57,7 +51,7 @@ class Trainer:
         self.epoch = 0
         self.best_score = float("-inf")
         self.best_epoch = 0
-        self.best_metrics: Dict[str, float] = {}
+        self.best_val: Dict = {}
 
     def train_epoch(self) -> float:
         self.detector.train()
@@ -105,17 +99,17 @@ class Trainer:
             train_loss = self.train_epoch()
 
             if epoch % self.config.val_interval and epoch != self.config.epochs:
-                yield EpochResult(epoch, lr, train_loss)
+                yield EpochResult(epoch, {"lr": lr, "train_loss": train_loss})
                 continue
 
-            metrics = self.validate()
-            is_best = metrics[self.config.select_metric] > self.best_score
+            val = self.validate()
+            is_best = val[self.config.select_metric] > self.best_score
             if is_best:
-                self.best_score = metrics[self.config.select_metric]
+                self.best_score = val[self.config.select_metric]
                 self.best_epoch = epoch
-                self.best_metrics = dict(metrics)
+                self.best_val = dict(val)
 
-            yield EpochResult(epoch, lr, train_loss, metrics, is_best)
+            yield EpochResult(epoch, {"lr": lr, "train_loss": train_loss}, val, is_best)
 
     def save(self, checkpoint: Union[str, Path]) -> None:
         ckpt_path = Path(checkpoint) / "training_state.pt"
@@ -130,7 +124,7 @@ class Trainer:
             "epoch": self.epoch,
             "best_score": self.best_score,
             "best_epoch": self.best_epoch,
-            "best_metrics": self.best_metrics,
+            "best_val": self.best_val,
             "optimizer": self.optimizer.state_dict(),
             "scheduler": self.scheduler.state_dict(),
         }
@@ -141,4 +135,4 @@ class Trainer:
         self.epoch = state["epoch"]
         self.best_score = state["best_score"]
         self.best_epoch = state["best_epoch"]
-        self.best_metrics = state.get("best_metrics", {})
+        self.best_val = state["best_val"]
