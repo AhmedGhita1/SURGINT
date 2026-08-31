@@ -8,9 +8,8 @@ from tqdm import tqdm
 
 from surgint.config import Config
 from surgint.dataset.transform import Transform
+from surgint.engine.evaluator import evaluate
 from surgint.engine.optim import build_optimizer, build_scheduler, freeze_batchnorm
-from surgint.evaluation.coco_eval import coco_evaluate, coco_predictions
-from surgint.model.decode import decode
 from surgint.model.detector import Detector
 
 
@@ -74,23 +73,8 @@ class Trainer:
 
         return total / len(self.train_loader)
 
-    def validate(self) -> Dict[str, float]:
-        dataset = self.val_loader.dataset
-        predictions = []
-
-        for batch in tqdm(self.val_loader, desc="val", leave=False):
-            logits, pred_boxes = self.detector.predict(batch["pixel_values"])
-            detections = decode(logits, pred_boxes, score_threshold=0.0)
-
-            for (boxes, scores, class_ids), image_id, scale, frame_size in zip(
-                detections, batch["image_ids"], batch["scales"], batch["frame_sizes"]
-            ):
-                boxes = self.transform.postprocess(boxes, scale, frame_size)
-                predictions += coco_predictions(
-                    image_id, boxes, scores, class_ids, dataset.mappings
-                )
-
-        return coco_evaluate(dataset.gt, predictions)
+    def validate(self) -> Dict:
+        return evaluate(self.detector, self.val_loader, self.transform)
 
     def train(self) -> Iterator[EpochResult]:
         for epoch in range(self.epoch + 1, self.config.epochs + 1):
