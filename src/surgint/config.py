@@ -19,7 +19,7 @@ class Config:
     run_dir: str = "outputs/runs"
     run_id: str = ""
     split: str = "val"
-    layouts: int = 0
+    splits: list[str] = field(default_factory=lambda: ["train", "val"])
     iou_threshold: float = 0.5
     metrics: list[str] = field(default_factory=lambda: ["mAP50_95", "mAP50", "mAP75"])
     select_metric: str = "mAP50_95"
@@ -33,6 +33,7 @@ class Config:
     schedule: str = "cosine"
     grad_clip: float = 0.1
     freeze_batchnorm: bool = True
+    val_interval: int = 1
     seed: int = 0
 
     def __post_init__(self):
@@ -42,6 +43,8 @@ class Config:
             raise ValueError(f"input_size must be [width, height], got {self.input_size}")
         if any(v <= 0 or v % 32 for v in self.input_size):
             raise ValueError(f"input_size must be positive and divisible by 32, got {self.input_size}")
+        if self.val_interval <= 0:
+            raise ValueError(f"val_interval must be positive, got {self.val_interval}")
         if self.batch_size <= 0:
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
         if self.select_metric not in self.metrics:
