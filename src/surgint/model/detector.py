@@ -1,20 +1,28 @@
-from typing import Dict, Tuple, cast
+from pathlib import Path
+from typing import Dict, Optional, Tuple, Union, cast
 
 import torch
+import yaml
 from torch import nn
 from transformers import RTDetrForObjectDetection
 
 
 class Detector(nn.Module):
-    def __init__(self, model: RTDetrForObjectDetection):
+    def __init__(self, model: RTDetrForObjectDetection, meta: Optional[Dict] = None):
         super().__init__()
         self.model = model
+        self.meta = meta
 
     @classmethod
-    def from_checkpoint(cls, checkpoint: str) -> "Detector":
-        """loads a surgint checkpoint."""
+    def from_checkpoint(cls, checkpoint: Union[str, Path]) -> "Detector":
+        """loads a surgint checkpoint. meta.yaml is required"""
+        meta_path = Path(checkpoint) / "meta.yaml"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"{checkpoint} has no meta.yaml")
+
         return cls(
-            cast(RTDetrForObjectDetection, RTDetrForObjectDetection.from_pretrained(checkpoint))
+            cast(RTDetrForObjectDetection, RTDetrForObjectDetection.from_pretrained(checkpoint)),
+            yaml.safe_load(meta_path.read_text()),
         )
 
     @classmethod
@@ -53,3 +61,12 @@ class Detector(nn.Module):
         self.eval()
         outputs = self(pixel_values)
         return outputs.logits.cpu(), outputs.pred_boxes.cpu()
+
+    def save_checkpoint(self, checkpoint: Union[str, Path], meta: Dict) -> None:
+        """weights and meta.yaml."""
+        checkpoint = Path(checkpoint)
+        checkpoint.mkdir(parents=True, exist_ok=True)
+        self.model.save_pretrained(checkpoint)
+
+        self.meta = {**meta, "labels": [self.id2label[index] for index in sorted(self.id2label)]}
+        (checkpoint / "meta.yaml").write_text(yaml.safe_dump(self.meta, sort_keys=False))

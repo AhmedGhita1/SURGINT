@@ -9,6 +9,7 @@ coverage:
 - construction: id2label, head resized to N, a saved checkpoint round trip
 - predict:      shapes, plain cpu tensors, eval mode
 - forward:      loss with labels, gradients reach the weights
+- persistence:  meta.yaml round trip, missing meta.yaml
 """
 
 import tempfile
@@ -86,14 +87,48 @@ def test_unit_construction():
     assert sum(p.numel() for p in detector.parameters()) > 0, "parameters() is empty"
     assert detector.device == next(detector.parameters()).device, "device is read from parameters"
 
-    # a saved checkpoint reloads with its own labels
+    # a pretrained checkpoint carries no surgint meta
+    assert detector.meta is None, "meta is written on save, not on load from pretrained"
+
+
+def test_unit_persistence():
+    """a checkpoint is the weights plus meta.yaml"""
+
+    detector = build_detector()
+    geometry = {
+        "input_size": [WIDTH, HEIGHT],
+        "pad_color": 114,
+        "rescale_factor": 1 / 255,
+        "source": CHECKPOINT,
+    }
+
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "best"
-        detector.model.save_pretrained(path)
-        reloaded = Detector.from_checkpoint(str(path))
+        detector.save_checkpoint(path, geometry)
 
-    assert reloaded.model.config.num_labels == len(ID2LABEL), "the head was resized on reload"
-    assert {int(k): v for k, v in reloaded.id2label.items()} == ID2LABEL, "labels were lost"
+        written = sorted(f.name for f in path.iterdir())
+        assert "meta.yaml" in written, f"got {written}"
+        assert "model.safetensors" in written, f"got {written}"
+
+        reloaded = Detector.from_checkpoint(path)
+
+        # the labels come from the model config, so they cannot disagree with the head
+        assert reloaded.meta["labels"] == [ID2LABEL[i] for i in sorted(ID2LABEL)]
+        assert reloaded.model.config.num_labels == len(ID2LABEL), "the head was resized on reload"
+        assert {int(k): v for k, v in reloaded.id2label.items()} == ID2LABEL, "labels were lost"
+
+        # the geometry survives, so inference letterboxes the way training did
+        for key, value in geometry.items():
+            assert reloaded.meta[key] == value, f"{key} changed to {reloaded.meta[key]}"
+
+        # weights alone are not a checkpoint
+        bare = Path(directory) / "bare"
+        detector.model.save_pretrained(bare)
+        try:
+            Detector.from_checkpoint(bare)
+            assert False, "should raise for a checkpoint without meta.yaml"
+        except FileNotFoundError:
+            pass
 
 
 def test_unit_predict():
@@ -160,6 +195,7 @@ def test_unit_forward():
 if __name__ == "__main__":
     test_unit_detections()
     test_unit_construction()
+    test_unit_persistence()
     test_unit_predict()
     test_unit_forward()
     print("\nall passed")
