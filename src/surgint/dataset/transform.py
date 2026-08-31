@@ -46,6 +46,16 @@ def to_normalized_cxcywh(boxes, width: int, height: int) -> np.ndarray:
     )
 
 
+def to_canvas_xyxy(boxes, width: int, height: int) -> np.ndarray:
+    """normalized cxcywh back to xyxy in canvas pixels"""
+    boxes = np.asarray(boxes, dtype=np.float32).reshape(-1, 4)
+    cx, cy, w, h = boxes.T
+    return np.stack(
+        [(cx - w / 2) * width, (cy - h / 2) * height, (cx + w / 2) * width, (cy + h / 2) * height],
+        axis=-1,
+    )
+
+
 def unletterbox_boxes(boxes, scale: float) -> np.ndarray:
     """canvas pixels to camera pixels"""
     return np.asarray(boxes, dtype=np.float32) / scale
@@ -92,13 +102,15 @@ class Transform:
 
 
     def postprocess(
-            self, 
-            boxes: np.ndarray, 
-            scale: float, 
+            self,
+            boxes: np.ndarray,
+            scale: float,
             frame_size: Tuple[int, int]) -> np.ndarray:
-        # canvas xyxy back to frame pixels, clipped to the frame
-        rows, columns = frame_size
+        # the exact inverse of __call__: normalized cxcywh -> canvas xyxy -> frame pixels
+        boxes = to_canvas_xyxy(boxes, self.width, self.height)
         boxes = unletterbox_boxes(boxes, scale)
+
+        rows, columns = frame_size
         boxes[:, 0::2] = boxes[:, 0::2].clip(0, columns)
         boxes[:, 1::2] = boxes[:, 1::2].clip(0, rows)
-        return boxes.astype(np.float32)
+        return boxes
