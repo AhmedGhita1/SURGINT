@@ -30,9 +30,9 @@ class SurgintDataset(Dataset):
         tracking = task == "detection-tracking"
 
         annos_path = self.root / "annotations" / self.split.parent / f"instances_{self.split.name}.json"
-        self.raw = json.loads(annos_path.read_text())
+        self.gt = json.loads(annos_path.read_text())
 
-        classes = sorted(self.raw["categories"], key=lambda category: category["id"])
+        classes = sorted(self.gt["categories"], key=lambda category: category["id"])
 
         # map the contiguous class ids to (category id, category name)
         self.mappings = {
@@ -41,11 +41,11 @@ class SurgintDataset(Dataset):
         }
         category2class = {class_name: class_id for class_id, (class_name, _) in self.mappings.items()}
 
-        boxes = {image["id"]: [] for image in self.raw["images"]}
-        classes = {image["id"]: [] for image in self.raw["images"]}
-        tracks = {image["id"]: [] for image in self.raw["images"]}
+        boxes = {image["id"]: [] for image in self.gt["images"]}
+        classes = {image["id"]: [] for image in self.gt["images"]}
+        tracks = {image["id"]: [] for image in self.gt["images"]}
         
-        for annotation in self.raw["annotations"]:
+        for annotation in self.gt["annotations"]:
             x, y, width, height = annotation["bbox"]
             boxes[annotation["image_id"]].append([x, y, x + width, y + height])
 
@@ -64,7 +64,7 @@ class SurgintDataset(Dataset):
                 np.array(classes[image["id"]], dtype=np.int64),
                 np.array(tracks[image["id"]], dtype=np.int64) if tracking else None,
             )
-            for image in self.raw["images"]
+            for image in self.gt["images"]
         ]
 
     def __len__(self) -> int:
