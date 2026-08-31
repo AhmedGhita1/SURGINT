@@ -1,12 +1,4 @@
 import numpy as np
-import torch
-from torch.utils.data import DataLoader
-
-from surgint.dataset.coco import SurgintDataset
-from surgint.model.decode import decode
-from surgint.evaluation import MetricsFn
-from surgint.evaluation.coco_eval import coco_evaluate, coco_predictions
-from surgint.inference import DETOutput
 
 
 def iou_matrix(boxes: np.ndarray, others: np.ndarray) -> np.ndarray:
@@ -42,28 +34,3 @@ def count_matches(predicted: np.ndarray, ground_truth: np.ndarray, iou_threshold
             if claimed.all():
                 break
     return matches
-
-
-def build_metrics_fn(dataset: SurgintDataset, loader: DataLoader) -> MetricsFn:
-    """COCO mAP over a complete dataset, through the inference postprocessing."""
-    to_category = {label: category for category, label in dataset.category_map.items()}
-    width, height = dataset.width, dataset.height
-
-    @torch.inference_mode()
-    def metrics_fn(model: torch.nn.Module) -> dict:
-        model.eval()
-        device = next(model.parameters()).device
-        predictions = []
-
-        for batch in loader:
-            outputs = model(pixel_values=batch["pixel_values"].to(device))
-            detections = decode(outputs.logits.cpu(), outputs.pred_boxes.cpu(), width, height, 0.0)
-            for (boxes, scores, class_ids), image_id, scale, frame_size in zip(
-                detections, batch["image_ids"], batch["scales"], batch["frame_sizes"]
-            ):
-                result = DETOutput(to_frame_boxes(boxes, scale, frame_size), scores, class_ids)
-                predictions += coco_predictions(image_id, result, to_category)
-
-        return coco_evaluate(dataset.annotations, predictions)
-
-    return metrics_fn

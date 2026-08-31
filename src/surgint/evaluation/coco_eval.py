@@ -5,14 +5,15 @@ from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
 
-def coco_predictions(image_id: int, result, label_to_category: dict[int, int]) -> list[dict]:
+def coco_predictions(image_id, boxes, scores, class_ids, mappings) -> list[dict]:
+    """xyxy in frame pixels to coco records, written back in the file's category ids"""
     records = []
-    for box, score, label in zip(result.boxes, result.scores, result.class_ids):
+    for box, score, class_id in zip(boxes, scores, class_ids):
         x1, y1, x2, y2 = (float(value) for value in box)
         records.append(
             {
                 "image_id": int(image_id),
-                "category_id": int(label_to_category[int(label)]),
+                "category_id": int(mappings[int(class_id)][0]),
                 "bbox": [x1, y1, x2 - x1, y2 - y1],
                 "score": float(score),
             }
