@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from surgint.config import Config
-from surgint.dataset.transform import Transform
+from surgint.model.transform import Transform
 from surgint.engine.evaluator import evaluate
 from surgint.engine.optim import build_optimizer, build_scheduler, freeze_batchnorm
 from surgint.model.detector import Detector

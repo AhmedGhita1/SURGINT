@@ -14,7 +14,7 @@ Coverage:
 import numpy as np
 import torch
 
-from surgint.dataset.transform import (
+from surgint.model.transform import (
     PAD_COLOR,
     Transform,
     letterbox,

@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from surgint.artifacts import RunWriter
 from surgint.config import Config, load_config
 from surgint.dataset.coco import SurgintDataset, collate
-from surgint.dataset.transform import Transform
+from surgint.model.transform import Transform
 from surgint.engine.trainer import Trainer
 from surgint.model.detector import Detector
 

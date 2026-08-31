@@ -6,7 +6,7 @@ from surgint.artifacts import RunWriter
 from surgint.cli.train import build_loader
 from surgint.config import Config, load_config
 from surgint.dataset.coco import SurgintDataset
-from surgint.dataset.transform import Transform
+from surgint.model.transform import Transform
 from surgint.engine.evaluator import evaluate
 from surgint.model.detector import Detector
 

@@ -21,7 +21,7 @@ from PIL import Image
 from torch.utils.data import DataLoader
 
 from surgint.dataset.coco import SurgintDataset, collate
-from surgint.dataset.transform import Transform
+from surgint.model.transform import Transform
 
 INPUT_SIZE = [1024, 576]
 FRAME_HEIGHT, FRAME_WIDTH = 720, 1280

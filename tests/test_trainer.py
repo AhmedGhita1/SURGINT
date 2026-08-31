@@ -25,7 +25,7 @@ from torch.utils.data import DataLoader
 
 from surgint.config import Config
 from surgint.dataset.coco import SurgintDataset, collate
-from surgint.dataset.transform import Transform
+from surgint.model.transform import Transform
 from surgint.engine.trainer import EpochResult, Trainer
 from surgint.model.detector import Detector
 

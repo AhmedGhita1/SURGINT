@@ -3,7 +3,7 @@ from typing import Dict
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from surgint.dataset.transform import Transform
+from surgint.model.transform import Transform
 from surgint.evaluation.coco_eval import coco_evaluate, coco_predictions
 from surgint.model.decode import decode
 from surgint.model.detector import Detector

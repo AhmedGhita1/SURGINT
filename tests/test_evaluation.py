@@ -25,7 +25,7 @@ from PIL import Image
 from torch.utils.data import DataLoader
 
 from surgint.dataset.coco import SurgintDataset, collate
-from surgint.dataset.transform import Transform
+from surgint.model.transform import Transform
 from surgint.engine.evaluator import evaluate
 
 INPUT_SIZE = [320, 192]
