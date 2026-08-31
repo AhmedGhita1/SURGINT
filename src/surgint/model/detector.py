@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union, cast
+from typing import Dict, List, Optional, Tuple, Union, cast
 
 import torch
 import yaml
@@ -43,6 +43,15 @@ class Detector(nn.Module):
     @property
     def id2label(self) -> Dict[int, str]:
         return self.model.config.id2label
+
+    def parameter_split(self) -> Tuple[List[nn.Parameter], List[nn.Parameter]]:
+        """backbone and head parameters"""
+        backbone_ids = {id(p) for p in self.model.model.backbone.parameters()}
+        backbone, head = [], []
+        for parameter in self.parameters():
+            if parameter.requires_grad:
+                (backbone if id(parameter) in backbone_ids else head).append(parameter)
+        return backbone, head
 
     @property
     def device(self) -> torch.device:
