@@ -6,6 +6,19 @@ import yaml
 
 from surgint.config import Config, save_config
 
+DIGITS = 6  
+
+
+def round_floats(value, digits: int = DIGITS):
+    """trim float precision for the json records"""
+    if isinstance(value, float):
+        return float(f"{value:.{digits}g}")
+    if isinstance(value, dict):
+        return {key: round_floats(item, digits) for key, item in value.items()}
+    if isinstance(value, list):
+        return [round_floats(item, digits) for item in value]
+    return value
+
 
 class RunWriter:
     """Write one training or evaluation run without owning computation."""
@@ -32,7 +45,7 @@ class RunWriter:
 
     def append_log(self, record: dict) -> None:
         with (self.root / "run.log").open("a") as stream:
-            stream.write(json.dumps(record) + "\n")
+            stream.write(json.dumps(round_floats(record)) + "\n")
 
     def save_checkpoint(
         self,
@@ -57,4 +70,4 @@ class RunWriter:
         return checkpoint
 
     def write_summary(self, summary: dict) -> None:
-        (self.root / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+        (self.root / "summary.json").write_text(json.dumps(round_floats(summary), indent=2) + "\n")
