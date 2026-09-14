@@ -4,6 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "surgint"
+description = "Surgical Instrument Intelligence. Real-time detection, tracking, and stateful inventory of surgical instruments in the operating room."
+readme = "README.md"
 version = "0.1.0.dev0"
 requires-python = ">=3.10"
 
