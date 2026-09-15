@@ -11,6 +11,7 @@ coverage:
 - task:       the key is validated, track_ids stay empty for detection-only
 - predict:    Detections in frame pixels, aligned arrays, threshold
 - checkpoint: from_checkpoint takes its geometry from meta.yaml
+- tracking:   detection-tracking fills track_ids, detection-only leaves them None
 """
 
 import tempfile
@@ -22,6 +23,7 @@ import torch
 from surgint.model import Detections
 from surgint.model.detector import Detector
 from surgint.model.transform import Transform
+from surgint.runtime.bytetrack import CONFIRM_HITS
 from surgint.runtime.pipeline import Pipeline
 
 CHECKPOINT = "PekingU/rtdetr_r18vd_coco_o365"
@@ -98,6 +100,39 @@ def test_unit_predict():
     assert empty.scores.shape == (0,) and empty.class_ids.shape == (0,)
 
 
+def test_unit_tracking():
+    """the tracker turns a stream of detections into identities that persist"""
+
+    transform = Transform(INPUT_SIZE)
+    boxes = np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32)
+
+    # detection-only never fills track ids, and reset is a no-op it must still accept
+    plain = Pipeline(StubDetector(boxes), transform, "detection-only")
+    assert plain.tracker is None, "detection-only must not build a tracker"
+    assert plain.predict(blank(), 0.3).track_ids is None, "detection-only must not track"
+    plain.reset()
+
+    tracked = Pipeline(StubDetector(boxes), transform, "detection-tracking")
+
+    # a suspicion is not reported until it has been confirmed
+    for hit in range(CONFIRM_HITS - 1):
+        assert len(tracked.predict(blank(), 0.3).boxes) == 0, f"reported at {hit + 1} hits"
+
+    result = tracked.predict(blank(), 0.3)
+    assert result.track_ids.tolist() == [1], f"got {result.track_ids.tolist()}"
+    assert len(result.boxes) == len(result.track_ids), "the arrays must stay aligned"
+
+    # the identity holds for as long as the instrument is there
+    for _ in range(3):
+        assert tracked.predict(blank(), 0.3).track_ids.tolist() == [1], "the id must not change"
+
+    # each eval session is its own sequence, so reset has to clear the counter too
+    tracked.reset()
+    for _ in range(CONFIRM_HITS):
+        result = tracked.predict(blank(), 0.3)
+    assert result.track_ids.tolist() == [1], f"ids leaked across the reset: {result.track_ids.tolist()}"
+
+
 def test_unit_from_checkpoint():
     """the geometry comes from meta.yaml, not from a config"""
 
@@ -138,5 +173,6 @@ def test_unit_from_checkpoint():
 if __name__ == "__main__":
     test_unit_task()
     test_unit_predict()
+    test_unit_tracking()
     test_unit_from_checkpoint()
     print("\nall passed")
