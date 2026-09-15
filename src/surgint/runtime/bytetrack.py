@@ -2,8 +2,10 @@ from collections import Counter
 from enum import Enum
 
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 from surgint.model import Detections
+from surgint.model.boxes import iou_matrix
 from surgint.runtime.kalman import MEASUREMENT_DIM, KalmanFilter, to_box, to_measurement
 
 # detections a track must collect before it is believed rather than suspected
@@ -68,12 +70,33 @@ class Track:
 
 def iou_distance(tracks: list[Track], boxes: np.ndarray) -> np.ndarray:
     """1 - IoU, as a cost matrix"""
-    raise NotImplementedError
+    # the track's own estimate, not the box it was last seen at, so a track that
+    # was predicted through a gap is compared where it should be now
+    estimates = np.array([track.box for track in tracks], dtype=float).reshape(-1, 4)
+    boxes = np.asarray(boxes, dtype=float).reshape(-1, 4)
+    return 1.0 - iou_matrix(estimates, boxes)
 
 
 def associate(cost: np.ndarray, threshold: float) -> tuple[list[tuple[int, int]], list[int], list[int]]:
     """Hungarian assignment; returns matches, unmatched track rows, unmatched detection columns"""
-    raise NotImplementedError
+    tracks, detections = cost.shape
+    if not tracks or not detections:
+        return [], list(range(tracks)), list(range(detections))
+
+    matches = []
+    for track, detection in zip(*linear_sum_assignment(cost)):
+        # the assignment is global, so it pairs everything it can. the threshold is
+        # what decides whether a pairing is close enough to be the same object
+        if cost[track, detection] <= threshold:
+            matches.append((int(track), int(detection)))
+
+    matched_tracks = {track for track, _ in matches}
+    matched_detections = {detection for _, detection in matches}
+    return (
+        matches,
+        [track for track in range(tracks) if track not in matched_tracks],
+        [detection for detection in range(detections) if detection not in matched_detections],
+    )
 
 
 class ByteTrack:
