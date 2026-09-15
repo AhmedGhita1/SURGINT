@@ -1,6 +1,7 @@
 dataset_id: production_v5
 data_root: data/synthetic/production_v5/dataset
 run_dir: outputs/runs
+task: detection-only
 split: val
 batch_size: 8
 

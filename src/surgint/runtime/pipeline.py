@@ -3,13 +3,11 @@ from typing import Union
 
 import numpy as np
 
-from surgint.model import Detections
+from surgint.model import TASKS, Detections
 from surgint.model.decode import decode
 from surgint.model.detector import Detector
 from surgint.model.transform import Transform
 from surgint.runtime.bytetrack import ByteTrack
-
-TASKS = ("detection-only", "detection-tracking")
 
 
 class Pipeline:

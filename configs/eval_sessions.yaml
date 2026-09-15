@@ -1,8 +1,33 @@
 dataset_id: production_v5
 data_root: data/synthetic/production_v5/dataset
 run_dir: outputs/runs
-split: eval
-batch_size: 8
 
-metrics: [mAP50_95, mAP50, mAP75]
-select_metric: mAP50_95
+task: detection-tracking
+
+# each session is one continuous camera orbit, so it is its own sequence:
+# the tracker is reset between them or ids leak from one into the next
+split: eval
+sessions:
+  - session_000
+  - session_001
+  - session_002
+  - session_003
+  - session_004
+  - session_005
+  - session_006
+  - session_007
+  - session_008
+  - session_009
+  - session_010
+  - session_011
+  - session_012
+  - session_013
+  - session_014
+  - session_015
+
+# the tracker carries state across frames, so the sequence is fed one frame at a time
+batch_size: 1
+iou_threshold: 0.5
+
+metrics: [MOTA, IDF1, id_switches]
+select_metric: MOTA
