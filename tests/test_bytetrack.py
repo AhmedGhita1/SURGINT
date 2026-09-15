@@ -2,19 +2,19 @@
 ByteTrack tests
 ===============
 
-tests the tracking layer that turns per-frame detections into persistent identities.
+tests the tracking layer: per-frame detections to persistent identities.
 
 coverage:
-- lifecycle: tentative until believed, lost when missed, confirmed again when found
-- class:     majority vote over matched detections, not the latest label
-- motion:    the estimate follows the detections and carries on without one
+- lifecycle: tentative, confirmed, lost, confirmed again
+- class:     majority vote over matched detections
+- motion:    the estimate follows detections and advances without one
 - cost:      1 - IoU between track estimates and the frame's boxes
-- associate: global assignment, and the threshold that rejects a bad pairing
-- update:    one identity per instrument across frames, and the output contract
-- rescue:    a weak box continues a track instead of losing it
-- buffer:    a track survives a gap, and a new instrument gets a new id
-- filter:    boxes too weak or too small never reach the filter
-- reset:     ids do not leak from one sequence into the next
+- associate: global assignment and the rejection threshold
+- update:    one id per instrument across frames, and the output dtypes
+- rescue:    a low scoring box continues a track
+- buffer:    a track survives a gap of track_buffer frames
+- filter:    weak and degenerate boxes are dropped
+- reset:     ids restart at 1
 """
 
 import numpy as np
@@ -39,7 +39,7 @@ def build(class_id: int = 0) -> Track:
 
 
 def frame(boxes, scores=None, class_ids=None) -> Detections:
-    """one frame of detections, as the pipeline hands them to the tracker"""
+    """one frame of detections, in the form the pipeline produces"""
     boxes = np.asarray(boxes, dtype=np.float32).reshape(-1, 4)
     count = len(boxes)
     return Detections(
@@ -50,59 +50,58 @@ def frame(boxes, scores=None, class_ids=None) -> Detections:
 
 
 def moved(step: int) -> np.ndarray:
-    """the box after step frames of drifting right"""
+    """the box after step frames of rightward drift"""
     return BOX + np.array([10.0 * step, 0.0, 10.0 * step, 0.0])
 
 
 def test_unit_lifecycle():
-    """what a track has to earn before it is believed, and what it survives"""
+    """the state transitions of a single track"""
 
     tracked = build()
-    assert tracked.track_id == 7, "the id is assigned once and never changes"
-    assert tracked.state is TrackState.TENTATIVE, "one detection is a suspicion, not a track"
+    assert tracked.track_id == 7, "the id is assigned at construction"
+    assert tracked.state is TrackState.TENTATIVE, "one detection gives a tentative track"
     assert tracked.hits == 1, f"got {tracked.hits}"
 
-    # a track is confirmed only once it has been seen CONFIRM_HITS times
+    # confirmation requires CONFIRM_HITS detections
     for hit in range(2, CONFIRM_HITS):
         tracked.update(BOX, SCORE, 0)
         assert tracked.state is TrackState.TENTATIVE, f"confirmed early at {hit} hits"
     tracked.update(BOX, SCORE, 0)
     assert tracked.state is TrackState.CONFIRMED, f"{CONFIRM_HITS} hits must confirm the track"
 
-    # a predicted frame is a frame without evidence, and counts against the track
+    # predict increments time_since_update, update clears it
     tracked.predict()
     tracked.predict()
     assert tracked.time_since_update == 2, f"got {tracked.time_since_update}"
     tracked.update(BOX, SCORE, 0)
-    assert tracked.time_since_update == 0, "a detection clears the debt"
+    assert tracked.time_since_update == 0, "update must clear time_since_update"
 
-    # the low scoring pass rescues lost tracks, so being found again restores the
-    # identity rather than opening a new one
+    # a lost track that is matched again returns to confirmed
     tracked.mark_lost()
-    assert tracked.state is TrackState.LOST, "a missed track is lost, not deleted"
+    assert tracked.state is TrackState.LOST, "mark_lost must set the lost state"
     tracked.update(BOX, SCORE, 0)
-    assert tracked.state is TrackState.CONFIRMED, "a rescued track must not restart as tentative"
+    assert tracked.state is TrackState.CONFIRMED, "a rescued track returns to confirmed"
     assert tracked.track_id == 7, "a rescued track keeps its id"
 
 
 def test_unit_class():
-    """association is class agnostic, so the track has to decide its own label"""
+    """the track decides its own label"""
 
     tracked = build(class_id=0)
     tracked.update(BOX, SCORE, 0)
 
-    # one frame disagreeing with two does not change what the track is
+    # one vote against two does not change the majority
     tracked.update(BOX, SCORE, 1)
-    assert tracked.class_id == 0, f"a single flip must not relabel the track, got {tracked.class_id}"
+    assert tracked.class_id == 0, f"the majority is still 0, got {tracked.class_id}"
 
-    # but the vote is a count, not a lock on whatever arrived first
+    # the vote is a count, so a new majority takes over
     for _ in range(3):
         tracked.update(BOX, SCORE, 1)
-    assert tracked.class_id == 1, f"the majority must win, got {tracked.class_id}"
+    assert tracked.class_id == 1, f"the majority should be 1, got {tracked.class_id}"
 
 
 def test_unit_motion():
-    """the box the tracker reports is the filter's estimate, not the last detection"""
+    """the reported box is the filter estimate"""
 
     tracked = build()
     velocity = 10.0
@@ -114,157 +113,153 @@ def test_unit_motion():
         tracked.update(BOX + shift, SCORE, 0)
 
     centre = (tracked.box[0] + tracked.box[2]) / 2
-    assert np.isclose(centre, 100 + velocity * 9, atol=2.0), f"the estimate lags the detection: {centre:.1f}"
-    assert tracked.box.shape == (4,), "the track reports xyxy"
+    assert np.isclose(centre, 100 + velocity * 9, atol=2.0), f"centre should be {100 + velocity * 9}, got {centre:.1f}"
+    assert tracked.box.shape == (4,), "the track reports four coordinates"
 
-    # a frame with no detection still advances the estimate; that is what makes a gap survivable
+    # predict advances the estimate without a detection
     before = tracked.box[0]
     tracked.predict()
-    assert tracked.box[0] > before, "a predicted frame must carry the track forward"
-    assert tracked.time_since_update == 1, "a predicted frame counts against the track"
+    assert tracked.box[0] > before, "predict must advance the box"
+    assert tracked.time_since_update == 1, "predict must increment time_since_update"
 
 
 def test_unit_cost():
-    """what association scores tracks against detections with"""
+    """the cost matrix association runs on"""
 
     tracked = build()
 
-    # a detection on top of the track costs nothing; one nowhere near it costs everything
+    # full overlap costs 0, no overlap costs 1
     far = BOX + 500.0
     cost = iou_distance([tracked], np.stack([BOX, far]))
     assert cost.shape == (1, 2), f"one row per track, one column per detection, got {cost.shape}"
-    assert np.isclose(cost[0, 0], 0.0), f"a perfect overlap must cost 0, got {cost[0, 0]}"
-    assert np.isclose(cost[0, 1], 1.0), f"no overlap must cost 1, got {cost[0, 1]}"
+    assert np.isclose(cost[0, 0], 0.0), f"full overlap should cost 0, got {cost[0, 0]}"
+    assert np.isclose(cost[0, 1], 1.0), f"no overlap should cost 1, got {cost[0, 1]}"
 
-    # the cost is measured against the track's estimate, so a track carried through a
-    # gap is compared where the filter thinks it is now
+    # cost is measured from the filter estimate, not the first detection
     for frame in range(1, 6):
         tracked.predict()
         tracked.update(BOX + np.array([10.0 * frame, 0.0, 10.0 * frame, 0.0]), SCORE, 0)
     tracked.predict()
-    assert iou_distance([tracked], BOX[None])[0, 0] > 0.9, "the estimate must have moved off the first box"
+    assert iou_distance([tracked], BOX[None])[0, 0] > 0.9, "the estimate should have moved off the first box"
 
-    # an empty frame, or no tracks yet, still returns something indexable
+    # empty inputs keep the matrix two-dimensional
     assert iou_distance([tracked], np.empty((0, 4))).shape == (1, 0), "an empty frame keeps the row"
     assert iou_distance([], np.stack([BOX])).shape == (0, 1), "no tracks keeps the column"
 
 
 def test_unit_associate():
-    """turning a cost matrix into matches and leftovers"""
+    """a cost matrix to matches and leftovers"""
 
-    # the assignment is global: taking the cheapest pair first would lock track 0 onto
-    # detection 0 and strand track 1 on a 0.9
+    # the assignment minimises the total. the cheapest pair first would give 1.0, not 0.3
     cost = np.array([[0.1, 0.2], [0.1, 0.9]])
     matches, tracks, detections = associate(cost, threshold=0.8)
-    assert matches == [(0, 1), (1, 0)], f"the cheapest total wins, got {matches}"
+    assert matches == [(0, 1), (1, 0)], f"expected the 0.3 total, got {matches}"
     assert tracks == [] and detections == [], "everything matched"
 
-    # a pairing the assignment makes but the threshold rejects comes back unmatched on both sides
+    # a pair above the threshold is dropped and reported unmatched on both sides
     cost = np.array([[0.1, 0.9], [0.9, 0.95]])
     matches, tracks, detections = associate(cost, threshold=0.5)
-    assert matches == [(0, 0)], f"only the close pairing survives, got {matches}"
+    assert matches == [(0, 0)], f"expected one match, got {matches}"
     assert tracks == [1], f"got {tracks}"
     assert detections == [1], f"got {detections}"
 
-    # leftovers on either side are reported, so new tracks open and missed ones age
+    # leftovers on either side are reported
     matches, tracks, detections = associate(np.array([[0.1, 0.9]]), threshold=0.5)
     assert matches == [(0, 0)] and tracks == [] and detections == [1], f"got {matches}, {tracks}, {detections}"
 
-    # an empty frame loses no track, and a first frame matches nothing
+    # empty inputs return everything as unmatched
     assert associate(np.empty((2, 0)), threshold=0.8) == ([], [0, 1], [])
     assert associate(np.empty((0, 2)), threshold=0.8) == ([], [], [0, 1])
 
 
 def test_unit_update():
-    """one instrument keeps one identity, and the output stays a Detections"""
+    """one id per instrument, and the output dtypes"""
 
     tracker = ByteTrack()
 
-    # nothing is reported until the track has earned confirmation
+    # nothing is reported before confirmation
     for step in range(CONFIRM_HITS - 1):
         assert len(tracker.update(frame([moved(step)])).boxes) == 0, f"reported at {step + 1} hits"
 
     tracked = tracker.update(frame([moved(CONFIRM_HITS - 1)]))
     assert tracked.track_ids.tolist() == [1], f"got {tracked.track_ids.tolist()}"
 
-    # the arrays stay aligned and keep the dtypes the rest of the application expects
+    # the arrays stay aligned and keep their dtypes
     assert tracked.boxes.shape == (1, 4) and tracked.boxes.dtype == np.float32, f"got {tracked.boxes.dtype}"
     assert tracked.scores.dtype == np.float32 and tracked.class_ids.dtype == np.int64
     assert tracked.track_ids.dtype == np.int64, f"got {tracked.track_ids.dtype}"
 
-    # and the identity survives the frames after it
+    # the id holds across later frames
     for step in range(CONFIRM_HITS, CONFIRM_HITS + 5):
         tracked = tracker.update(frame([moved(step)]))
         assert tracked.track_ids.tolist() == [1], f"the id changed at step {step}: {tracked.track_ids.tolist()}"
 
-    # an empty frame reports nothing without breaking the shapes
+    # an empty frame reports nothing and keeps the shapes
     empty = tracker.update(frame(np.empty((0, 4))))
     assert empty.boxes.shape == (0, 4) and empty.track_ids.shape == (0,), f"got {empty.boxes.shape}"
 
 
 def test_unit_rescue():
-    """the second pass is what keeps an occluded instrument from becoming a new one"""
+    """a low scoring box continues a track"""
 
-    # the rescue threshold is stricter than the first pass, so it only holds once the
-    # filter has learned the motion. a track confirmed a frame ago cannot predict well
-    # enough to be rescued through fast movement
+    # the rescue threshold is stricter than the first pass. it only holds once the
+    # filter has learned the motion, which takes about four frames at this speed
     warmup = 6
     tracker = ByteTrack()
     for step in range(warmup):
         tracker.update(frame([moved(step)]))
 
-    # the detector half loses the instrument: still a box, but a weak one
+    # the detector produces a box, at a low score
     weak = tracker.update(frame([moved(warmup)], scores=[0.2]))
-    assert weak.track_ids.tolist() == [1], f"a low scoring box must continue the track, got {weak.track_ids.tolist()}"
-    assert tracker.next_id == 2, "the rescue must not have opened a second track"
+    assert weak.track_ids.tolist() == [1], f"the rescue pass should continue track 1, got {weak.track_ids.tolist()}"
+    assert tracker.next_id == 2, "no second track should have opened"
 
 
 def test_unit_buffer():
-    """a gap the tracker rides out, against one it does not"""
+    """a gap within track_buffer, and a gap beyond it"""
 
-    # a stationary instrument, so this measures the buffer rather than the filter's
-    # ability to extrapolate through the gap
+    # a stationary instrument, so this measures the buffer and not the motion model
     tracker = ByteTrack(track_buffer=5)
     for _ in range(CONFIRM_HITS):
         tracker.update(frame([BOX]))
 
-    # frames with nothing at all: the track is held, but never reported as seen
+    # the track is held through empty frames and not reported
     for _ in range(3):
-        assert len(tracker.update(frame(np.empty((0, 4)))).boxes) == 0, "a predicted track is not an observation"
+        assert len(tracker.update(frame(np.empty((0, 4)))).boxes) == 0, "a predicted track must not be reported"
 
     back = tracker.update(frame([BOX]))
-    assert back.track_ids.tolist() == [1], f"a track within the buffer keeps its id, got {back.track_ids.tolist()}"
+    assert back.track_ids.tolist() == [1], f"expected id 1 within the buffer, got {back.track_ids.tolist()}"
 
-    # past the buffer the track is gone, and the same instrument is a new one
+    # past the buffer the track is dropped and the next detection opens a new one
     for _ in range(tracker.track_buffer + 2):
         tracker.update(frame(np.empty((0, 4))))
-    assert tracker.tracks == [], "the track should have been dropped past the buffer"
+    assert tracker.tracks == [], "the track should be dropped past the buffer"
 
     for _ in range(CONFIRM_HITS):
         fresh = tracker.update(frame([BOX]))
-    assert fresh.track_ids.tolist() == [2], f"a new instrument needs a new id, got {fresh.track_ids.tolist()}"
+    assert fresh.track_ids.tolist() == [2], f"expected id 2, got {fresh.track_ids.tolist()}"
 
 
 def test_unit_filter():
-    """what never reaches the filter"""
+    """detections dropped before the filter"""
 
     tracker = ByteTrack(low_thresh=0.1, min_box_area=100.0)
 
-    # below the low threshold there is no evidence to associate on
+    # below low_thresh there is nothing to associate on
     assert len(tracker.update(frame([BOX], scores=[0.05])).boxes) == 0
-    assert tracker.tracks == [], "a box under the low threshold must not open a track"
+    assert tracker.tracks == [], "a box under low_thresh must not open a track"
 
-    # a box that clipped to zero area at the frame edge would divide by zero in the filter
+    # a box clipped to zero area at the frame edge would divide by zero
     tracker.update(frame([[10.0, 10.0, 10.0, 50.0]]))
-    assert tracker.tracks == [], "a zero width box must never reach the kalman filter"
+    assert tracker.tracks == [], "a zero width box must not reach the filter"
 
-    # and a box smaller than min_box_area is not worth an identity
+    # a box below min_box_area is dropped
     tracker.update(frame([[0.0, 0.0, 5.0, 5.0]]))
     assert tracker.tracks == [], "a box under min_box_area must not open a track"
 
 
 def test_unit_reset():
-    """sequences are independent; the eval split is 16 of them"""
+    """reset clears the tracks and the id counter"""
 
     tracker = ByteTrack()
     for step in range(CONFIRM_HITS):
@@ -274,10 +269,10 @@ def test_unit_reset():
     tracker.reset()
     assert tracker.tracks == [], "reset must drop every track"
 
-    # the next sequence starts from id 1 again, or ids leak across sequences
+    # the next sequence starts from id 1
     for step in range(CONFIRM_HITS):
         tracked = tracker.update(frame([moved(step)]))
-    assert tracked.track_ids.tolist() == [1], f"ids leaked across the reset: {tracked.track_ids.tolist()}"
+    assert tracked.track_ids.tolist() == [1], f"expected id 1 after reset, got {tracked.track_ids.tolist()}"
 
 
 if __name__ == "__main__":

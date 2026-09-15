@@ -8,11 +8,11 @@ from surgint.model import Detections
 from surgint.model.boxes import iou_matrix
 from surgint.runtime.kalman import MEASUREMENT_DIM, KalmanFilter, to_box, to_measurement
 
-# detections a track must collect before it is believed rather than suspected
+# detections required before a track is confirmed
 CONFIRM_HITS = 3
 
-# the rescue pass is stricter than the first. a low scoring box is weak evidence, so it
-# is only allowed to continue a track it already sits almost on top of
+# threshold for the second association pass. stricter than match_thresh because low
+# scoring boxes are unreliable.
 RESCUE_MATCH_THRESH = 0.5
 
 
@@ -48,7 +48,7 @@ class Track:
 
     @property
     def class_id(self) -> int:
-        """majority class over matched detections; a per-frame flip must not split the track"""
+        """majority class over matched detections"""
         return self.votes.most_common(1)[0][0]
 
     def predict(self) -> None:
@@ -64,8 +64,7 @@ class Track:
         self.hits += 1
         self.time_since_update = 0
 
-        # the state follows the hit count, so a lost track that is matched again
-        # comes back confirmed instead of starting over as tentative
+        # state follows the hit count. a matched lost track returns to confirmed.
         self.state = TrackState.CONFIRMED if self.hits >= CONFIRM_HITS else TrackState.TENTATIVE
 
     def mark_lost(self) -> None:
@@ -74,8 +73,7 @@ class Track:
 
 def iou_distance(tracks: list[Track], boxes: np.ndarray) -> np.ndarray:
     """1 - IoU, as a cost matrix"""
-    # the track's own estimate, not the box it was last seen at, so a track that
-    # was predicted through a gap is compared where it should be now
+    # distance is measured from the filter estimate, already advanced by predict()
     estimates = np.array([track.box for track in tracks], dtype=float).reshape(-1, 4)
     boxes = np.asarray(boxes, dtype=float).reshape(-1, 4)
     return 1.0 - iou_matrix(estimates, boxes)
@@ -89,8 +87,8 @@ def associate(cost: np.ndarray, threshold: float) -> tuple[list[tuple[int, int]]
 
     matches = []
     for track, detection in zip(*linear_sum_assignment(cost)):
-        # the assignment is global, so it pairs everything it can. the threshold is
-        # what decides whether a pairing is close enough to be the same object
+        # linear_sum_assignment pairs everything it can. the threshold drops pairs
+        # that are too far apart.
         if cost[track, detection] <= threshold:
             matches.append((int(track), int(detection)))
 
@@ -104,7 +102,7 @@ def associate(cost: np.ndarray, threshold: float) -> tuple[list[tuple[int, int]]
 
 
 class ByteTrack:
-    """association is class agnostic; each track votes its own class. see docs/decisions/0007"""
+    """association is class agnostic. each track votes its own class"""
 
     def __init__(
         self,
@@ -133,16 +131,15 @@ class ByteTrack:
         high = np.flatnonzero(scores >= self.high_thresh)
         low = np.flatnonzero(scores < self.high_thresh)
 
-        # the first pass sees every track, lost ones included, so an instrument that
-        # comes back is recognised instead of being opened again under a new id
+        # first pass runs against every track, lost ones included. a returning
+        # instrument keeps its id.
         pool = list(self.tracks)
         matched, missed, unclaimed = associate(iou_distance(pool, boxes[high]), self.match_thresh)
         for track, detection in matched:
             index = high[detection]
             pool[track].update(boxes[index], scores[index], class_ids[index])
 
-        # the second pass sees only the tracks the first could not explain. an occluded
-        # instrument usually still has a weak box on it, and that is enough to continue
+        # second pass runs only against unmatched tracks, using low scoring boxes
         rescue = [pool[track] for track in missed]
         matched, missed, _ = associate(iou_distance(rescue, boxes[low]), RESCUE_MATCH_THRESH)
         for track, detection in matched:
@@ -152,7 +149,7 @@ class ByteTrack:
         for track in missed:
             rescue[track].mark_lost()
 
-        # a high scoring box that no track claimed is an instrument we have not seen
+        # unmatched high scoring boxes open new tracks
         for detection in unclaimed:
             index = high[detection]
             self.tracks.append(
@@ -169,7 +166,7 @@ class ByteTrack:
         self.next_id = 1
 
     def _usable(self, detections: Detections) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """boxes worth tracking. a zero area box would divide by zero on the way to a measurement"""
+        """drop boxes that are too weak or too small. zero area divides by zero in to_measurement"""
         boxes = np.asarray(detections.boxes, dtype=float).reshape(-1, 4)
         scores = np.asarray(detections.scores, dtype=float).reshape(-1)
         class_ids = np.asarray(detections.class_ids, dtype=np.int64).reshape(-1)
@@ -184,13 +181,13 @@ class ByteTrack:
         return boxes[keep], scores[keep], class_ids[keep]
 
     def _alive(self, track: Track) -> bool:
-        # a track that was never confirmed has to be seen every frame, or it was noise
+        # tentative tracks are dropped on the first miss
         if track.state is TrackState.TENTATIVE:
             return track.time_since_update == 0
         return track.time_since_update <= self.track_buffer
 
     def _detections(self) -> Detections:
-        """confirmed tracks seen this frame. a predicted box is an estimate, not an observation"""
+        """confirmed tracks updated this frame. predicted boxes are not reported"""
         visible = [
             track
             for track in self.tracks

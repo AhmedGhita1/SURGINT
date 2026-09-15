@@ -34,9 +34,8 @@ class Pipeline:
         return cls(detector, transform, task)
 
     def predict(self, frame: np.ndarray, score_threshold: float) -> Detections:
-        # under tracking the tracker owns the score policy. its second pass rescues lost
-        # tracks with the weak boxes a threshold here would have thrown away, so
-        # score_threshold applies to detection only
+        # the tracker needs low scoring boxes for its second pass. under tracking,
+        # decode runs at low_thresh and score_threshold is unused.
         threshold = self.tracker.low_thresh if self.tracker else score_threshold
 
         sample = self.transform(frame)
@@ -49,6 +48,6 @@ class Pipeline:
         return self.tracker.update(detections) if self.tracker else detections
 
     def reset(self) -> None:
-        """drop the tracking state between sequences, or ids leak from one into the next"""
+        """drop the tracking state. call between sequences"""
         if self.tracker is not None:
             self.tracker.reset()

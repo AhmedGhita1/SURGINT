@@ -3,7 +3,7 @@ from typing import Optional
 
 import numpy as np
 
-# what a run is for: detection alone, or detection with identities carried across frames
+# detection alone, or detection with track ids
 TASKS = ("detection-only", "detection-tracking")
 
 

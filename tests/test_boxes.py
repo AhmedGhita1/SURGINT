@@ -19,10 +19,10 @@ BOX = np.array([[10.0, 10.0, 20.0, 20.0]])
 def test_unit_iou():
     """pairwise overlap between two sets of boxes"""
 
-    # a box against itself is the only way to score 1
+    # a box against itself scores 1
     assert iou_matrix(BOX, BOX)[0, 0] == 1.0, f"got {iou_matrix(BOX, BOX)[0, 0]}"
 
-    # no overlap is zero, not a small number
+    # no overlap scores 0
     far = np.array([[100.0, 100.0, 110.0, 110.0]])
     assert iou_matrix(BOX, far)[0, 0] == 0.0, f"got {iou_matrix(BOX, far)[0, 0]}"
 
@@ -30,12 +30,12 @@ def test_unit_iou():
     shifted = np.array([[15.0, 10.0, 25.0, 20.0]])
     assert iou_matrix(BOX, shifted)[0, 0] == 50 / 150, f"got {iou_matrix(BOX, shifted)[0, 0]}"
 
-    # one row per box, one column per other, so association can index it directly
+    # one row per box, one column per other
     ious = iou_matrix(np.repeat(BOX, 3, axis=0), np.concatenate([BOX, far, shifted]))
     assert ious.shape == (3, 3), f"got {ious.shape}"
     assert np.allclose(ious[0], [1.0, 0.0, 50 / 150]), f"got {ious[0].tolist()}"
 
-    # an empty side keeps the matrix shape rather than collapsing it
+    # an empty side keeps the matrix two-dimensional
     empty = np.empty((0, 4))
     assert iou_matrix(empty, BOX).shape == (0, 1), f"got {iou_matrix(empty, BOX).shape}"
     assert iou_matrix(BOX, empty).shape == (1, 0), f"got {iou_matrix(BOX, empty).shape}"

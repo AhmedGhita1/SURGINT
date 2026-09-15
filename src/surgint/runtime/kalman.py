@@ -4,7 +4,7 @@ import numpy as np
 STATE_DIM = 8
 MEASUREMENT_DIM = 4
 
-# aspect is a ratio, so its noise is a fixed term rather than one that scales with the box
+# aspect is a ratio. its noise does not scale with box size.
 ASPECT_NOISE = 1e-2
 ASPECT_VELOCITY_NOISE = 1e-5
 ASPECT_OBSERVATION_NOISE = 1e-1
@@ -31,15 +31,15 @@ class KalmanFilter:
         self.position_weight = position_weight
         self.velocity_weight = velocity_weight
 
-        # one frame per step, so every position picks up its whole velocity
+        # one frame per step. each position gains its velocity.
         self.motion_mat = np.eye(STATE_DIM)
         self.motion_mat[:MEASUREMENT_DIM, MEASUREMENT_DIM:] = np.eye(MEASUREMENT_DIM)
 
-        # a detection observes the position half and nothing else
+        # a detection observes the position half.
         self.update_mat = np.eye(MEASUREMENT_DIM, STATE_DIM)
 
     def _std(self, height: float, position_scale: float, velocity_scale: float) -> np.ndarray:
-        """process noise for one step; box noise scales with height, aspect noise does not"""
+        """process noise for one step. box noise scales with height, aspect noise is fixed"""
         position = position_scale * self.position_weight * height
         velocity = velocity_scale * self.velocity_weight * height
         return np.array(
@@ -60,8 +60,8 @@ class KalmanFilter:
         mean = np.zeros(STATE_DIM)
         mean[:MEASUREMENT_DIM] = measurement  # the track starts at rest
 
-        # one frame is a weak prior, so both halves start inflated. the velocity
-        # half is inflated harder: a single detection says nothing about motion
+        # one detection is a weak prior. both halves start inflated, velocity more
+        # than position.
         std = self._std(float(measurement[3]), position_scale=2.0, velocity_scale=10.0)
         return mean, np.diag(np.square(std))
 
@@ -85,7 +85,7 @@ class KalmanFilter:
     ) -> tuple[np.ndarray, np.ndarray]:
         projected_mean, projected_covariance = self.project(mean, covariance)
 
-        # gain is P H^T S^-1, solved rather than inverted
+        # gain is P H^T S^-1, computed with a linear solve
         gain = np.linalg.solve(projected_covariance, (covariance @ self.update_mat.T).T).T
 
         mean = mean + gain @ (measurement - projected_mean)
