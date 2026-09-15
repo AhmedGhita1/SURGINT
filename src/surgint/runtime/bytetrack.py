@@ -1,9 +1,13 @@
+from collections import Counter
 from enum import Enum
 
 import numpy as np
 
 from surgint.model import Detections
-from surgint.runtime.kalman import KalmanFilter
+from surgint.runtime.kalman import MEASUREMENT_DIM, KalmanFilter, to_box, to_measurement
+
+# detections a track must collect before it is believed rather than suspected
+CONFIRM_HITS = 3
 
 
 class TrackState(Enum):
@@ -21,26 +25,45 @@ class Track:
         class_id: int,
         kalman: KalmanFilter,
     ):
-        raise NotImplementedError
+        self.track_id = track_id
+        self.score = score
+        self.kalman = kalman
+        self.mean, self.covariance = kalman.initiate(to_measurement(box))
+
+        self.votes = Counter([class_id])
+        self.hits = 1
+        self.time_since_update = 0
+        self.state = TrackState.TENTATIVE
 
     @property
     def box(self) -> np.ndarray:
         """current estimate as xyxy"""
-        raise NotImplementedError
+        return to_box(self.mean[:MEASUREMENT_DIM])
 
     @property
     def class_id(self) -> int:
         """majority class over matched detections; a per-frame flip must not split the track"""
-        raise NotImplementedError
+        return self.votes.most_common(1)[0][0]
 
     def predict(self) -> None:
-        raise NotImplementedError
+        self.mean, self.covariance = self.kalman.predict(self.mean, self.covariance)
+        self.time_since_update += 1
 
     def update(self, box: np.ndarray, score: float, class_id: int) -> None:
-        raise NotImplementedError
+        self.mean, self.covariance = self.kalman.update(
+            self.mean, self.covariance, to_measurement(box)
+        )
+        self.score = score
+        self.votes[class_id] += 1
+        self.hits += 1
+        self.time_since_update = 0
+
+        # the state follows the hit count, so a lost track that is matched again
+        # comes back confirmed instead of starting over as tentative
+        self.state = TrackState.CONFIRMED if self.hits >= CONFIRM_HITS else TrackState.TENTATIVE
 
     def mark_lost(self) -> None:
-        raise NotImplementedError
+        self.state = TrackState.LOST
 
 
 def iou_distance(tracks: list[Track], boxes: np.ndarray) -> np.ndarray:
