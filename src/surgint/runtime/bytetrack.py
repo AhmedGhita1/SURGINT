@@ -11,6 +11,10 @@ from surgint.runtime.kalman import MEASUREMENT_DIM, KalmanFilter, to_box, to_mea
 # detections a track must collect before it is believed rather than suspected
 CONFIRM_HITS = 3
 
+# the rescue pass is stricter than the first. a low scoring box is weak evidence, so it
+# is only allowed to continue a track it already sits almost on top of
+RESCUE_MATCH_THRESH = 0.5
+
 
 class TrackState(Enum):
     TENTATIVE = "tentative"
@@ -110,12 +114,91 @@ class ByteTrack:
         track_buffer: int = 30,
         min_box_area: float = 0.0,
     ):
-        raise NotImplementedError
+        self.high_thresh = high_thresh
+        self.low_thresh = low_thresh
+        self.match_thresh = match_thresh
+        self.track_buffer = track_buffer
+        self.min_box_area = min_box_area
+
+        self.kalman = KalmanFilter()
+        self.tracks: list[Track] = []
+        self.next_id = 1
 
     def update(self, detections: Detections) -> Detections:
         """one frame. high scoring boxes associate first, then low scoring ones rescue lost tracks"""
-        raise NotImplementedError
+        for track in self.tracks:
+            track.predict()
+
+        boxes, scores, class_ids = self._usable(detections)
+        high = np.flatnonzero(scores >= self.high_thresh)
+        low = np.flatnonzero(scores < self.high_thresh)
+
+        # the first pass sees every track, lost ones included, so an instrument that
+        # comes back is recognised instead of being opened again under a new id
+        pool = list(self.tracks)
+        matched, missed, unclaimed = associate(iou_distance(pool, boxes[high]), self.match_thresh)
+        for track, detection in matched:
+            index = high[detection]
+            pool[track].update(boxes[index], scores[index], class_ids[index])
+
+        # the second pass sees only the tracks the first could not explain. an occluded
+        # instrument usually still has a weak box on it, and that is enough to continue
+        rescue = [pool[track] for track in missed]
+        matched, missed, _ = associate(iou_distance(rescue, boxes[low]), RESCUE_MATCH_THRESH)
+        for track, detection in matched:
+            index = low[detection]
+            rescue[track].update(boxes[index], scores[index], class_ids[index])
+
+        for track in missed:
+            rescue[track].mark_lost()
+
+        # a high scoring box that no track claimed is an instrument we have not seen
+        for detection in unclaimed:
+            index = high[detection]
+            self.tracks.append(
+                Track(self.next_id, boxes[index], scores[index], class_ids[index], self.kalman)
+            )
+            self.next_id += 1
+
+        self.tracks = [track for track in self.tracks if self._alive(track)]
+        return self._detections()
 
     def reset(self) -> None:
         """drop every track and reset the id counter; call between sequences or ids leak across them"""
-        raise NotImplementedError
+        self.tracks = []
+        self.next_id = 1
+
+    def _usable(self, detections: Detections) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """boxes worth tracking. a zero area box would divide by zero on the way to a measurement"""
+        boxes = np.asarray(detections.boxes, dtype=float).reshape(-1, 4)
+        scores = np.asarray(detections.scores, dtype=float).reshape(-1)
+        class_ids = np.asarray(detections.class_ids, dtype=np.int64).reshape(-1)
+
+        widths, heights = boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]
+        keep = (
+            (widths > 0)
+            & (heights > 0)
+            & (widths * heights >= self.min_box_area)
+            & (scores >= self.low_thresh)
+        )
+        return boxes[keep], scores[keep], class_ids[keep]
+
+    def _alive(self, track: Track) -> bool:
+        # a track that was never confirmed has to be seen every frame, or it was noise
+        if track.state is TrackState.TENTATIVE:
+            return track.time_since_update == 0
+        return track.time_since_update <= self.track_buffer
+
+    def _detections(self) -> Detections:
+        """confirmed tracks seen this frame. a predicted box is an estimate, not an observation"""
+        visible = [
+            track
+            for track in self.tracks
+            if track.state is TrackState.CONFIRMED and track.time_since_update == 0
+        ]
+        return Detections(
+            np.array([track.box for track in visible], dtype=np.float32).reshape(-1, 4),
+            np.array([track.score for track in visible], dtype=np.float32),
+            np.array([track.class_id for track in visible], dtype=np.int64),
+            np.array([track.track_id for track in visible], dtype=np.int64),
+        )
