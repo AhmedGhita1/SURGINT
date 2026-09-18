@@ -2,7 +2,7 @@ checkpoint: PekingU/rtdetr_r18vd_coco_o365
 input_size: [1024, 576]
 
 dataset_id: production_v5
-data_root: /kaggle/input/datasets/ahmedghita/production-v5/dataset/
+data_root: /kaggle/working/data
 run_dir: /kaggle/working/runs
 
 splits:
