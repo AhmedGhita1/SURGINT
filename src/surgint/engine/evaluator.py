@@ -20,7 +20,8 @@ def evaluate(detector: Detector, loader: DataLoader, transform: Transform) -> Di
     dataset = loader.dataset
     predictions = []
 
-    for batch in tqdm(loader, desc="eval", leave=False):
+    batches = tqdm(loader, desc="eval", leave=False)
+    for batch in batches:
         logits, pred_boxes = detector.predict(batch["pixel_values"])
         detections = decode(logits, pred_boxes, score_threshold=0.0)
 
@@ -29,6 +30,8 @@ def evaluate(detector: Detector, loader: DataLoader, transform: Transform) -> Di
         ):
             boxes = transform.postprocess(boxes, scale, frame_size)
             predictions += coco_predictions(image_id, boxes, scores, class_ids, dataset.mappings)
+
+        batches.set_postfix(predictions=len(predictions))
 
     return coco_evaluate(dataset.gt, predictions)
 
