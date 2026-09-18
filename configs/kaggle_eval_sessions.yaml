@@ -1,5 +1,5 @@
 dataset_id: production_v5
-data_root: /kaggle/input/production-v5
+data_root: /kaggle/input/datasets/ahmedghita/production-v5/dataset
 run_dir: /kaggle/working/runs
 
 task: detection-tracking
