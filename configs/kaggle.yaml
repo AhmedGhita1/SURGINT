@@ -1,0 +1,24 @@
+checkpoint: PekingU/rtdetr_r18vd_coco_o365
+input_size: [1024, 576]
+
+dataset_id: production_v5
+data_root: /kaggle/working/data
+run_dir: /kaggle/working/runs
+
+splits:
+  - train
+  - val
+
+epochs: 50
+batch_size: 8
+learning_rate: 1.0e-4
+backbone_learning_rate: 1.0e-5
+weight_decay: 1.0e-4
+warmup_steps: 500
+schedule: cosine
+grad_clip: 0.1
+freeze_batchnorm: true
+val_interval: 1
+seed: 0
+metrics: [mAP50_95, mAP50, mAP75]
+select_metric: mAP50_95
