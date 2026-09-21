@@ -11,7 +11,7 @@ coverage:
 
 import numpy as np
 
-from surgint.model.boxes import iou_matrix
+from surgint.model.boxes import iou_matrix, nms
 
 BOX = np.array([[10.0, 10.0, 20.0, 20.0]])
 
@@ -39,6 +39,30 @@ def test_unit_iou():
     empty = np.empty((0, 4))
     assert iou_matrix(empty, BOX).shape == (0, 1), f"got {iou_matrix(empty, BOX).shape}"
     assert iou_matrix(BOX, empty).shape == (1, 0), f"got {iou_matrix(BOX, empty).shape}"
+
+
+
+def test_unit_nms():
+    """greedy suppression of boxes covering the same object"""
+
+    # two boxes on one object, one elsewhere
+    boxes = np.array([[0.0, 0.0, 10.0, 10.0],
+                      [1.0, 1.0, 11.0, 11.0],
+                      [100.0, 100.0, 110.0, 110.0]])
+    scores = np.array([0.6, 0.9, 0.7])
+
+    keep = nms(boxes, scores, 0.5)
+    assert keep.tolist() == [1, 2], f"the weaker overlapping box must go, got {keep.tolist()}"
+
+    # a threshold above the pair's iou keeps both
+    assert sorted(nms(boxes, scores, 0.95).tolist()) == [0, 1, 2], "nothing overlaps that far"
+
+    # indices come back highest score first
+    assert nms(boxes, scores, 0.5)[0] == 1, "the highest scoring box is kept first"
+
+    # suppression is class agnostic, so it runs on boxes alone
+    assert nms(boxes[:1], scores[:1], 0.5).tolist() == [0], "a single box survives"
+    assert nms(np.empty((0, 4)), np.empty(0), 0.5).tolist() == [], "an empty frame keeps nothing"
 
 
 if __name__ == "__main__":

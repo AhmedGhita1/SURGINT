@@ -68,7 +68,7 @@ def run_sessions(config: Config, checkpoint: Path, device: str) -> Dict:
         raise ValueError(f"task {config.task} needs sessions in the config")
 
     pipeline = Pipeline.from_checkpoint(
-        checkpoint, config.task, device, config.tracker, config.max_detections
+        checkpoint, config.task, device, config.tracker, config.max_detections, config.nms_iou
     )
 
     # no transform: the pipeline letterboxes the frame itself, as it does at serving
