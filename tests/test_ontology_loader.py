@@ -12,7 +12,36 @@ def test_packaged_ontology_loads_with_pinned_identity():
 def test_packaged_ontology_contains_the_perception_categories():
     _, ontology = load()
 
+    concepts = {
+        str(concept.perceptionLabel.first()): concept.name
+        for concept in ontology.classes()
+        if concept.perceptionLabel
+    }
+    assert concepts == {
+        "scalpel": "scalpel",
+        "forceps": "forceps",
+        "hemostat": "hemostat",
+        "scissors": "scissors",
+        "retractor": "retractor",
+        "dissector": "dissector",
+        "syringe": "syringe",
+        "tray": "tray",
+        "basin": "basin",
+        "bowl": "bowl",
+        "gauze": "gauze",
+        "bandage": "bandage",
+        "tube": "tube",
+    }
+
+
+def test_packaged_ontology_contains_the_schema_classes():
+    _, ontology = load()
+
     assert {concept.name for concept in ontology.classes()} == {
+        "TrayItem",
+        "LifecycleDesignation",
+        "IntrinsicSharpHazard",
+        "FunctionalRole",
         "scalpel",
         "forceps",
         "hemostat",

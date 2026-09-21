@@ -11,7 +11,7 @@ def test_packaged_ontology_passes_schema_validation():
 
 def test_validation_rejects_a_missing_perception_label():
     _, ontology = load()
-    ontology.scalpel.label = []
+    ontology.scalpel.perceptionLabel = []
 
     with pytest.raises(ValueError, match="exactly one perception label"):
         validate(ontology)
@@ -19,7 +19,7 @@ def test_validation_rejects_a_missing_perception_label():
 
 def test_validation_rejects_a_duplicate_perception_label():
     _, ontology = load()
-    ontology.forceps.label = ["scalpel"]
+    ontology.forceps.perceptionLabel = ["scalpel"]
 
     with pytest.raises(ValueError, match="is not unique"):
         validate(ontology)
@@ -28,16 +28,20 @@ def test_validation_rejects_a_duplicate_perception_label():
 def test_validation_rejects_an_invalid_controlled_value():
     _, ontology = load()
     ontology.forceps.is_a.append(
-        ontology.hasHazardClass.value(ontology.cutting)
+        ontology.hasIntrinsicSharpHazard.value(ontology.cutting)
     )
 
-    with pytest.raises(ValueError, match="invalid hasHazardClass"):
+    with pytest.raises(ValueError, match="invalid hasIntrinsicSharpHazard"):
         validate(ontology)
 
 
 def test_validation_rejects_multiple_functional_values():
     _, ontology = load()
-    ontology.gauze.is_a.append(ontology.hasHazardClass.value(ontology.sharp))
+    ontology.gauze.is_a.append(
+        ontology.hasIntrinsicSharpHazard.value(ontology.sharp)
+    )
 
-    with pytest.raises(ValueError, match="multiple values for hasHazardClass"):
+    with pytest.raises(
+        ValueError, match="multiple values for hasIntrinsicSharpHazard"
+    ):
         validate(ontology)
