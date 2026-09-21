@@ -94,8 +94,8 @@ def render(
     fps: int,
     scale: float,
     limit: Optional[int],
-) -> Dict:
-    """write one session to an mp4 and return the counts behind it"""
+) -> None:
+    """write one session to an mp4"""
     import imageio.v2 as imageio
 
     labels = pipeline.detector.meta["labels"]
@@ -103,7 +103,6 @@ def render(
     pipeline.reset()
 
     frames = len(dataset) if limit is None else min(limit, len(dataset))
-    totals = {"gt": 0, "predictions": 0, "raw_high": 0, "raw_low": 0}
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     writer = imageio.get_writer(
@@ -125,13 +124,6 @@ def render(
             output = Image.fromarray(frame.copy())
             draw_boxes(ImageDraw.Draw(output), detections, labels, font, line)
 
-            gt_count = len(np.asarray(sample["boxes"]).reshape(-1, 4))
-            prediction_count = len(detections.boxes)
-            totals["gt"] += gt_count
-            totals["predictions"] += prediction_count
-            totals["raw_high"] += counts["high"]
-            totals["raw_low"] += counts["low"]
-
             if scale != 1.0:
                 # even dimensions, which yuv420p requires
                 size = (
@@ -141,12 +133,14 @@ def render(
                 output = output.resize(size, Image.BILINEAR)
 
             writer.append_data(np.asarray(output))
-            progress.set_postfix(gt=gt_count, tracked=prediction_count, raw=counts["high"])
+            progress.set_postfix(
+                gt=len(np.asarray(sample["boxes"]).reshape(-1, 4)),
+                tracked=len(detections.boxes),
+                raw=counts["high"],
+            )
     finally:
         progress.close()
         writer.close()
-
-    return {"frames": frames, **totals}
 
 
 def main():
@@ -194,16 +188,8 @@ def main():
     destination = args.output or OUTPUT / f"{args.session}_{args.checkpoint.name}.mp4"
     print(f"{args.session}: {len(dataset)} frames on {args.device}, writing {destination}")
 
-    counts = render(pipeline, dataset, destination, args.fps, args.scale, args.limit)
-
-    frames = counts["frames"]
-    print(f"\n{frames} frames")
-    print(f"  ground truth per frame      {counts['gt'] / frames:.1f}")
-    print(f"  tracked per frame           {counts['predictions'] / frames:.1f}")
-    print(f"  raw detections per frame    {counts['raw_high'] / frames:.1f} "
-          f"at >= {pipeline.tracker.high_thresh:.2f}, "
-          f"{counts['raw_low'] / frames:.1f} at >= {pipeline.tracker.low_thresh:.2f}")
-    print(f"\nwrote {destination}")
+    render(pipeline, dataset, destination, args.fps, args.scale, args.limit)
+    print(f"wrote {destination}")
 
 
 if __name__ == "__main__":
