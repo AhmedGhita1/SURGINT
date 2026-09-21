@@ -16,11 +16,7 @@ DEVICE = "cuda"
 
 
 def categories_of(meta: Dict, dataset: SurgintDataset) -> List[str]:
-    """
-    the dataset categories, checked against the checkpoint labels.
-
-    raises when they disagree, since the class ids would mean different things on each side.
-    """
+    """the dataset categories."""
     categories = [name for _, name in dataset.mappings.values()]
     if meta["labels"] != categories:
         raise ValueError(f"checkpoint labels {meta['labels']} do not match categories {categories}")
@@ -28,11 +24,7 @@ def categories_of(meta: Dict, dataset: SurgintDataset) -> List[str]:
 
 
 def run_detection(config: Config, checkpoint: Path, device: str) -> Dict:
-    """
-    score the detector on one split.
-
-    returns the run summary, and writes the run record under config.run_dir.
-    """
+    """score the detector on one split."""
     detector = Detector.from_checkpoint(checkpoint).to(device)
     meta = detector.meta
 
@@ -75,7 +67,9 @@ def run_sessions(config: Config, checkpoint: Path, device: str) -> Dict:
     if not config.sessions:
         raise ValueError(f"task {config.task} needs sessions in the config")
 
-    pipeline = Pipeline.from_checkpoint(checkpoint, config.task, device)
+    pipeline = Pipeline.from_checkpoint(
+        checkpoint, config.task, device, config.tracker, config.max_detections
+    )
 
     # no transform: the pipeline letterboxes the frame itself, as it does at serving
     sessions = {
@@ -119,11 +113,7 @@ def run_sessions(config: Config, checkpoint: Path, device: str) -> Dict:
 
 
 def run(config: Config, checkpoint: Path, device: str) -> Dict:
-    """
-    evaluate a checkpoint.
-
-    config.task selects the detector on one split, or the detector and tracker on sessions.
-    """
+    """evaluate a checkpoint."""
     if config.task == "detection-tracking":
         return run_sessions(config, checkpoint, device)
     return run_detection(config, checkpoint, device)

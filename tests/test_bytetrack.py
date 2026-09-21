@@ -11,7 +11,8 @@ coverage:
 - cost:      1 - IoU between track estimates and the frame's boxes
 - associate: global assignment and the rejection threshold
 - update:    one id per instrument across frames, and the output dtypes
-- rescue:    a low scoring box continues a track
+- rescue:    a low scoring box continues a confirmed track, and only a confirmed one
+- output:    output_thresh separates staying associated from being reported
 - buffer:    a track survives a gap of track_buffer frames
 - filter:    weak and degenerate boxes are dropped
 - reset:     ids restart at 1
@@ -215,6 +216,52 @@ def test_unit_rescue():
     assert tracker.next_id == 2, "no second track should have opened"
 
 
+def test_unit_rescue_skips_tentative():
+    """the second pass ignores tracks that are not confirmed"""
+
+    tracker = ByteTrack()
+
+    # one high scoring detection opens a tentative track
+    tracker.update(frame([BOX]))
+    assert tracker.tracks[0].state is TrackState.TENTATIVE, "one hit gives a tentative track"
+
+    # low scoring boxes on the same spot must not carry it to confirmation
+    tracker.update(frame([BOX], scores=[0.2]))
+    assert tracker.tracks == [], "a tentative track must not be rescued on low scores"
+
+    # a lost track is not revived by them either
+    tracker = ByteTrack(track_buffer=5)
+    for _ in range(CONFIRM_HITS):
+        tracker.update(frame([BOX]))
+    tracker.update(frame(np.empty((0, 4))))
+    assert tracker.tracks[0].state is TrackState.LOST, "the missed track should be lost"
+
+    tracker.update(frame([BOX], scores=[0.2]))
+    assert tracker.tracks[0].state is TrackState.LOST, "a lost track must not be revived on low scores"
+
+
+def test_unit_output_thresh():
+    """a rescued track stays associated without being reported"""
+
+    # the filter needs a few frames to learn the motion before the rescue pass holds
+    warmup = 6
+    tracker = ByteTrack(output_thresh=0.5)
+    for step in range(warmup):
+        tracker.update(frame([moved(step)]))
+
+    weak = tracker.update(frame([moved(warmup)], scores=[0.2]))
+    assert len(weak.boxes) == 0, "a track riding a low scoring box must not be reported"
+    assert len(tracker.tracks) == 1, "the track must stay alive"
+    assert tracker.tracks[0].time_since_update == 0, "the track was still matched"
+
+    # the same id is reported again once a strong detection returns
+    back = tracker.update(frame([moved(warmup + 1)]))
+    assert back.track_ids.tolist() == [1], f"expected id 1 back, got {back.track_ids.tolist()}"
+
+    # the default reports whatever it matched
+    assert ByteTrack().output_thresh == 0.0, "output_thresh must default to reporting everything"
+
+
 def test_unit_buffer():
     """a gap within track_buffer, and a gap beyond it"""
 
@@ -283,6 +330,8 @@ if __name__ == "__main__":
     test_unit_associate()
     test_unit_update()
     test_unit_rescue()
+    test_unit_rescue_skips_tentative()
+    test_unit_output_thresh()
     test_unit_buffer()
     test_unit_filter()
     test_unit_reset()

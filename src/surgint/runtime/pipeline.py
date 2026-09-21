@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -11,15 +11,23 @@ from surgint.runtime.bytetrack import ByteTrack
 
 
 class Pipeline:
-    def __init__(self, detector: Detector, transform: Transform, task: str):
-        
+    def __init__(
+        self,
+        detector: Detector,
+        transform: Transform,
+        task: str,
+        tracker: Optional[dict] = None,
+        max_detections: Optional[int] = None,
+    ):
+
         if task not in TASKS:
             raise ValueError(f"task must be one of {TASKS}, got {task!r}")
 
         self.detector = detector
         self.transform = transform
         self.task = task
-        self.tracker = ByteTrack() if task == "detection-tracking" else None
+        self.max_detections = max_detections
+        self.tracker = ByteTrack(**(tracker or {})) if task == "detection-tracking" else None
 
     @classmethod
     def from_checkpoint(
@@ -27,11 +35,13 @@ class Pipeline:
         checkpoint: Union[str, Path],
         task: str = "detection-only",
         device: str = "cuda",
+        tracker: Optional[dict] = None,
+        max_detections: Optional[int] = None,
     ) -> "Pipeline":
         detector = Detector.from_checkpoint(checkpoint).to(device)
         meta = detector.meta
         transform = Transform(meta["input_size"], meta["pad_color"], meta["rescale_factor"])
-        return cls(detector, transform, task)
+        return cls(detector, transform, task, tracker, max_detections)
 
     def predict(self, frame: np.ndarray, score_threshold: float) -> Detections:
         # the tracker needs low scoring boxes for its second pass. under tracking,
@@ -41,7 +51,7 @@ class Pipeline:
         sample = self.transform(frame)
         logits, pred_boxes = self.detector.predict(sample["pixel_values"].unsqueeze(0))
 
-        boxes, scores, class_ids = decode(logits, pred_boxes, threshold)[0]
+        boxes, scores, class_ids = decode(logits, pred_boxes, threshold, self.max_detections)[0]
         boxes = self.transform.postprocess(boxes, sample["scale"], sample["frame_size"])
 
         detections = Detections(boxes, scores, class_ids)

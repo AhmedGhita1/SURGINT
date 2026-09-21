@@ -24,6 +24,8 @@ class Config:
     split: str = "val"
     splits: list[str] = field(default_factory=lambda: ["train", "val"])
     sessions: list[str] = field(default_factory=list)
+    tracker: dict = field(default_factory=dict)
+    max_detections: int | None = None
     iou_threshold: float = 0.5
     metrics: list[str] = field(default_factory=lambda: ["mAP50_95", "mAP50", "mAP75"])
     select_metric: str = "mAP50_95"

@@ -23,6 +23,8 @@ class TrackState(Enum):
 
 
 class Track:
+    """holds one track's id, Kalman box estimate, class votes, hit count and state."""
+
     def __init__(
         self,
         track_id: int,
@@ -43,19 +45,21 @@ class Track:
 
     @property
     def box(self) -> np.ndarray:
-        """current estimate as xyxy"""
+        """the Kalman estimate as xyxy."""
         return to_box(self.mean[:MEASUREMENT_DIM])
 
     @property
     def class_id(self) -> int:
-        """majority class over matched detections"""
+        """the most voted class over the track's matched detections."""
         return self.votes.most_common(1)[0][0]
 
     def predict(self) -> None:
+        """advance the estimate one frame without a detection."""
         self.mean, self.covariance = self.kalman.predict(self.mean, self.covariance)
         self.time_since_update += 1
 
     def update(self, box: np.ndarray, score: float, class_id: int) -> None:
+        """correct the estimate with a matched box, add its class vote, count the hit."""
         self.mean, self.covariance = self.kalman.update(
             self.mean, self.covariance, to_measurement(box)
         )
@@ -68,11 +72,12 @@ class Track:
         self.state = TrackState.CONFIRMED if self.hits >= CONFIRM_HITS else TrackState.TENTATIVE
 
     def mark_lost(self) -> None:
+        """set the state to lost."""
         self.state = TrackState.LOST
 
 
 def iou_distance(tracks: list[Track], boxes: np.ndarray) -> np.ndarray:
-    """1 - IoU, as a cost matrix"""
+    """1 - IoU between every track estimate and every box."""
     # distance is measured from the filter estimate, already advanced by predict()
     estimates = np.array([track.box for track in tracks], dtype=float).reshape(-1, 4)
     boxes = np.asarray(boxes, dtype=float).reshape(-1, 4)
@@ -80,7 +85,12 @@ def iou_distance(tracks: list[Track], boxes: np.ndarray) -> np.ndarray:
 
 
 def associate(cost: np.ndarray, threshold: float) -> tuple[list[tuple[int, int]], list[int], list[int]]:
-    """Hungarian assignment; returns matches, unmatched track rows, unmatched detection columns"""
+    """
+    minimum cost assignment of tracks to detections.
+
+    returns the matched (track, detection) pairs, the unmatched track rows and the
+    unmatched detection columns. pairs costing more than threshold are rejected.
+    """
     tracks, detections = cost.shape
     if not tracks or not detections:
         return [], list(range(tracks)), list(range(detections))
@@ -102,7 +112,13 @@ def associate(cost: np.ndarray, threshold: float) -> tuple[list[tuple[int, int]]
 
 
 class ByteTrack:
-    """association is class agnostic. each track votes its own class"""
+    """
+    two pass association of detections to tracks.
+
+    boxes above high_thresh drive the first pass and open new tracks. boxes below it
+    drive the second pass, which only continues confirmed tracks. matching ignores
+    class; each track votes its own.
+    """
 
     def __init__(
         self,
@@ -111,19 +127,25 @@ class ByteTrack:
         match_thresh: float = 0.8,
         track_buffer: int = 30,
         min_box_area: float = 0.0,
+        output_thresh: float = 0.0,
     ):
         self.high_thresh = high_thresh
         self.low_thresh = low_thresh
         self.match_thresh = match_thresh
         self.track_buffer = track_buffer
         self.min_box_area = min_box_area
+        self.output_thresh = output_thresh
 
         self.kalman = KalmanFilter()
         self.tracks: list[Track] = []
         self.next_id = 1
 
     def update(self, detections: Detections) -> Detections:
-        """one frame. high scoring boxes associate first, then low scoring ones rescue lost tracks"""
+        """
+        track one frame of detections.
+
+        returns the confirmed tracks updated this frame.
+        """
         for track in self.tracks:
             track.predict()
 
@@ -139,8 +161,10 @@ class ByteTrack:
             index = high[detection]
             pool[track].update(boxes[index], scores[index], class_ids[index])
 
-        # second pass runs only against unmatched tracks, using low scoring boxes
-        rescue = [pool[track] for track in missed]
+        # second pass runs only against unmatched confirmed tracks, using low scoring
+        # boxes. a tentative track promoted on low scores, or a lost one revived by
+        # them, becomes a false positive that never retires.
+        rescue = [pool[track] for track in missed if pool[track].state is TrackState.CONFIRMED]
         matched, missed, _ = associate(iou_distance(rescue, boxes[low]), RESCUE_MATCH_THRESH)
         for track, detection in matched:
             index = low[detection]
@@ -166,7 +190,7 @@ class ByteTrack:
         self.next_id = 1
 
     def _usable(self, detections: Detections) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """drop boxes that are too weak or too small. zero area divides by zero in to_measurement"""
+        """drop boxes that are too weak or too small."""
         boxes = np.asarray(detections.boxes, dtype=float).reshape(-1, 4)
         scores = np.asarray(detections.scores, dtype=float).reshape(-1)
         class_ids = np.asarray(detections.class_ids, dtype=np.int64).reshape(-1)
@@ -181,17 +205,20 @@ class ByteTrack:
         return boxes[keep], scores[keep], class_ids[keep]
 
     def _alive(self, track: Track) -> bool:
+        """whether the track is kept for the next frame."""
         # tentative tracks are dropped on the first miss
         if track.state is TrackState.TENTATIVE:
             return track.time_since_update == 0
         return track.time_since_update <= self.track_buffer
 
     def _detections(self) -> Detections:
-        """confirmed tracks updated this frame. predicted boxes are not reported"""
+        """the confirmed tracks matched this frame whose score clears output_thresh."""
         visible = [
             track
             for track in self.tracks
-            if track.state is TrackState.CONFIRMED and track.time_since_update == 0
+            if track.state is TrackState.CONFIRMED
+            and track.time_since_update == 0
+            and track.score >= self.output_thresh
         ]
         return Detections(
             np.array([track.box for track in visible], dtype=np.float32).reshape(-1, 4),
