@@ -9,7 +9,7 @@ from surgint.model.boxes import iou_matrix
 from surgint.runtime.kalman import MEASUREMENT_DIM, KalmanFilter, to_box, to_measurement
 
 # detections required before a track is confirmed
-CONFIRM_HITS = 3
+CONFIRM_HITS = 5
 
 # threshold for the second association pass. stricter than match_thresh because low
 # scoring boxes are unreliable.
