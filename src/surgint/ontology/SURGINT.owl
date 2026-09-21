@@ -4,103 +4,74 @@
     xml:base="http://www.semanticweb.org/ahmedghita/ontologies/2026/SURGINT"
     xmlns:owl="http://www.w3.org/2002/07/owl#"
     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
-    xmlns:xsd="http://www.w3.org/2001/XMLSchema#">
+    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
 
     <owl:Ontology rdf:about="http://www.semanticweb.org/ahmedghita/ontologies/2026/SURGINT">
         <owl:versionIRI rdf:resource="http://www.semanticweb.org/ahmedghita/ontologies/2026/SURGINT/1.0.0"/>
-        <rdfs:label xml:lang="en">SURGINT</rdfs:label>
-        <rdfs:comment xml:lang="en">An OWL 2 ontology for detector-aligned surgical instrument handling and inventory knowledge.</rdfs:comment>
         <owl:versionInfo>1.0.0</owl:versionInfo>
+        <rdfs:label xml:lang="en">SURGINT</rdfs:label>
+        <rdfs:comment xml:lang="en">Detector-aligned knowledge for surgical tray inventory and handling.</rdfs:comment>
     </owl:Ontology>
 
-    <!-- Object properties -->
     <owl:ObjectProperty rdf:about="#hasDisposalStatus">
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
         <rdfs:label xml:lang="en">has disposal status</rdfs:label>
-        <rdfs:comment xml:lang="en">Relates an item to its reusable or single-use lifecycle designation.</rdfs:comment>
     </owl:ObjectProperty>
-
     <owl:ObjectProperty rdf:about="#hasHazardClass">
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
         <rdfs:label xml:lang="en">has hazard class</rdfs:label>
-        <rdfs:comment xml:lang="en">Relates an item to its sharp-hazard classification; none means that no intrinsic sharp hazard is asserted.</rdfs:comment>
     </owl:ObjectProperty>
-
     <owl:ObjectProperty rdf:about="#hasFunctionalRole">
         <rdfs:label xml:lang="en">has functional role</rdfs:label>
-        <rdfs:comment xml:lang="en">Relates an item to a handling-relevant functional role used for inventory grouping and tray organization.</rdfs:comment>
     </owl:ObjectProperty>
 
-    <!-- Controlled values: disposal status -->
     <owl:NamedIndividual rdf:about="#reusable">
         <rdfs:label xml:lang="en">reusable</rdfs:label>
-        <rdfs:comment xml:lang="en">A disposal-status value for an item intended to enter a validated reprocessing cycle before reuse.</rdfs:comment>
     </owl:NamedIndividual>
-
     <owl:NamedIndividual rdf:about="#single-use">
         <rdfs:label xml:lang="en">single-use</rdfs:label>
-        <rdfs:comment xml:lang="en">A disposal-status value for an item intended for one use and subsequent disposal under applicable policy.</rdfs:comment>
     </owl:NamedIndividual>
-
-    <!-- Controlled values: hazard class -->
     <owl:NamedIndividual rdf:about="#sharp">
         <rdfs:label xml:lang="en">sharp</rdfs:label>
-        <rdfs:comment xml:lang="en">A hazard value for an item with an intrinsic cutting or puncturing edge or point.</rdfs:comment>
     </owl:NamedIndividual>
-
     <owl:NamedIndividual rdf:about="#none">
         <rdfs:label xml:lang="en">none</rdfs:label>
-        <rdfs:comment xml:lang="en">A hazard value stating that the detector category has no intrinsic sharp hazard; it does not mean risk-free or uncontaminated.</rdfs:comment>
+        <rdfs:comment xml:lang="en">No intrinsic sharp hazard is asserted; this does not mean risk-free or uncontaminated.</rdfs:comment>
     </owl:NamedIndividual>
-
-    <!-- Controlled values: functional role -->
     <owl:NamedIndividual rdf:about="#cutting">
         <rdfs:label xml:lang="en">cutting</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of dividing tissue or material with a cutting edge.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#grasping">
         <rdfs:label xml:lang="en">grasping</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of holding or manipulating tissue or material.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#clamping">
         <rdfs:label xml:lang="en">clamping</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of occluding or securely holding tissue or a vessel.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#tissue-retraction">
         <rdfs:label xml:lang="en">tissue retraction</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of holding tissue aside to expose an operative field.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#tissue-dissection">
         <rdfs:label xml:lang="en">tissue dissection</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of separating tissue planes.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#fluid-delivery">
         <rdfs:label xml:lang="en">fluid delivery</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of injecting or dispensing fluid.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#instrument-support">
         <rdfs:label xml:lang="en">instrument support</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of holding and organizing instruments or supplies.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#fluid-containment">
         <rdfs:label xml:lang="en">fluid containment</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of receiving or holding fluid.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#absorption">
         <rdfs:label xml:lang="en">absorption</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of absorbing blood or other fluid.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#wound-dressing">
         <rdfs:label xml:lang="en">wound dressing</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of covering, securing, or supporting a wound dressing.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#fluid-conveyance">
         <rdfs:label xml:lang="en">fluid conveyance</rdfs:label>
-        <rdfs:comment xml:lang="en">The functional role of carrying fluid or gas between locations.</rdfs:comment>
     </owl:NamedIndividual>
 
-    <!-- The values are explicit alternatives; OWL does not assume different IRIs denote different things. -->
     <owl:AllDifferent>
         <owl:distinctMembers rdf:parseType="Collection">
             <rdf:Description rdf:about="#reusable"/>
@@ -121,254 +92,74 @@
         </owl:distinctMembers>
     </owl:AllDifferent>
 
-    <!-- Exactly 13 detector classes, all direct subclasses of owl:Thing. -->
     <owl:Class rdf:about="#scalpel">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>scalpel</rdfs:label>
-        <rdfs:comment xml:lang="en">A bladed surgical cutting instrument used to make incisions.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasHazardClass"/>
-                <owl:hasValue rdf:resource="#sharp"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#cutting"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasHazardClass"/><owl:hasValue rdf:resource="#sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#cutting"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#forceps">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>forceps</rdfs:label>
-        <rdfs:comment xml:lang="en">A surgical instrument used to grasp or manipulate tissue or material.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#grasping"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#grasping"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#hemostat">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>hemostat</rdfs:label>
-        <rdfs:comment xml:lang="en">A locking clamp used to control bleeding by occluding a vessel or tissue.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasHazardClass"/>
-                <owl:hasValue rdf:resource="#none"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#clamping"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasHazardClass"/><owl:hasValue rdf:resource="#none"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#clamping"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#scissors">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>scissors</rdfs:label>
-        <rdfs:comment xml:lang="en">A paired-blade surgical instrument used to cut tissue or material.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasHazardClass"/>
-                <owl:hasValue rdf:resource="#sharp"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#cutting"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasHazardClass"/><owl:hasValue rdf:resource="#sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#cutting"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#retractor">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>retractor</rdfs:label>
-        <rdfs:comment xml:lang="en">A surgical instrument used to hold tissue aside and expose the operative field.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#tissue-retraction"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#tissue-retraction"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#dissector">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>dissector</rdfs:label>
-        <rdfs:comment xml:lang="en">A surgical instrument used to separate tissue planes.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#tissue-dissection"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#tissue-dissection"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#syringe">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>syringe</rdfs:label>
-        <rdfs:comment xml:lang="en">A plunger-operated device used to inject, withdraw, or dispense fluid.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasDisposalStatus"/>
-                <owl:hasValue rdf:resource="#single-use"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#fluid-delivery"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasDisposalStatus"/><owl:hasValue rdf:resource="#single-use"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#fluid-delivery"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#tray">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>tray</rdfs:label>
-        <rdfs:comment xml:lang="en">A shallow platform or receptacle used to hold and organize surgical items.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasDisposalStatus"/>
-                <owl:hasValue rdf:resource="#reusable"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasHazardClass"/>
-                <owl:hasValue rdf:resource="#none"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#instrument-support"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasDisposalStatus"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasHazardClass"/><owl:hasValue rdf:resource="#none"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#instrument-support"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#basin">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>basin</rdfs:label>
-        <rdfs:comment xml:lang="en">A broad surgical receptacle used to receive or hold fluid.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasDisposalStatus"/>
-                <owl:hasValue rdf:resource="#reusable"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasHazardClass"/>
-                <owl:hasValue rdf:resource="#none"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#fluid-containment"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasDisposalStatus"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasHazardClass"/><owl:hasValue rdf:resource="#none"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#fluid-containment"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#bowl">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>bowl</rdfs:label>
-        <rdfs:comment xml:lang="en">A round surgical receptacle used to receive or hold fluid or supplies.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasDisposalStatus"/>
-                <owl:hasValue rdf:resource="#reusable"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasHazardClass"/>
-                <owl:hasValue rdf:resource="#none"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#fluid-containment"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasDisposalStatus"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasHazardClass"/><owl:hasValue rdf:resource="#none"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#fluid-containment"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#gauze">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>gauze</rdfs:label>
-        <rdfs:comment xml:lang="en">An absorbent textile used to absorb fluid, cover tissue, or assist wound care.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasDisposalStatus"/>
-                <owl:hasValue rdf:resource="#single-use"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasHazardClass"/>
-                <owl:hasValue rdf:resource="#none"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#absorption"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasDisposalStatus"/><owl:hasValue rdf:resource="#single-use"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasHazardClass"/><owl:hasValue rdf:resource="#none"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#absorption"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#bandage">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>bandage</rdfs:label>
-        <rdfs:comment xml:lang="en">A material applied to cover, secure, or support a wound dressing.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasDisposalStatus"/>
-                <owl:hasValue rdf:resource="#single-use"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasHazardClass"/>
-                <owl:hasValue rdf:resource="#none"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#wound-dressing"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasDisposalStatus"/><owl:hasValue rdf:resource="#single-use"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasHazardClass"/><owl:hasValue rdf:resource="#none"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#wound-dressing"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
-
     <owl:Class rdf:about="#tube">
-        <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
         <rdfs:label>tube</rdfs:label>
-        <rdfs:comment xml:lang="en">A flexible hollow conduit used to convey fluid or gas.</rdfs:comment>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasHazardClass"/>
-                <owl:hasValue rdf:resource="#none"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
-        <rdfs:subClassOf>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="#hasFunctionalRole"/>
-                <owl:hasValue rdf:resource="#fluid-conveyance"/>
-            </owl:Restriction>
-        </rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasHazardClass"/><owl:hasValue rdf:resource="#none"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#fluid-conveyance"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
 
-    <!-- Detector categories are mutually exclusive, while remaining hierarchy siblings. -->
     <owl:AllDisjointClasses>
         <owl:members rdf:parseType="Collection">
             <rdf:Description rdf:about="#scalpel"/>
@@ -386,5 +177,4 @@
             <rdf:Description rdf:about="#tube"/>
         </owl:members>
     </owl:AllDisjointClasses>
-
 </rdf:RDF>

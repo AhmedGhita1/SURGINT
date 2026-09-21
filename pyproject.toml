@@ -8,6 +8,9 @@ description = "Surgical Instrument Intelligence. Real-time detection, tracking, 
 readme = "README.md"
 version = "0.1.0.dev0"
 requires-python = ">=3.10"
+dependencies = [
+    "owlready2==0.47",
+]
 
 [project.scripts]
 train = "surgint.cli.train:main"
