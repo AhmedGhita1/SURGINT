@@ -1,0 +1,31 @@
+schema_version: 1
+policy_id: surgint-demo-handling
+version: 1.0.0
+status: demonstration-only
+
+rules:
+  - id: reusable-sharp
+    when:
+      workflow_stage: post-procedure-clearing
+      lifecycle: reusable
+      intrinsic_sharp_hazard: sharp
+    action: secure-transport-to-reprocessing
+    explanation: Reusable sharp items require secure transport to reprocessing.
+
+  - id: disposable-sharp
+    when:
+      workflow_stage: post-procedure-clearing
+      lifecycle: single-use
+      intrinsic_sharp_hazard: sharp
+    action: approved-sharps-stream
+    explanation: Single-use sharp items enter the approved sharps stream.
+
+  - id: unused-disposable-nonsharp
+    when:
+      workflow_stage: post-procedure-clearing
+      lifecycle: single-use
+      intrinsic_sharp_hazard: no-intrinsic-sharp
+      use_state: unused
+      contamination_state: not-regulated
+    action: facility-general-waste
+    explanation: Unused, non-regulated, non-sharp disposable items follow facility general-waste policy.
