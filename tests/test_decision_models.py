@@ -2,7 +2,13 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from surgint.decision import Decision, ItemContext, Observation
+from surgint.decision import (
+    Decision,
+    ItemContext,
+    ItemContextOverride,
+    Observation,
+    SessionContext,
+)
 
 
 def test_observation_is_validated_and_immutable():
@@ -39,6 +45,36 @@ def test_item_context_rejects_unknown_controlled_values():
             workflow_stage="post-procedure-clearing",
             use_state="maybe",
         )
+
+
+def test_session_context_composes_class_specific_facts():
+    session = SessionContext(
+        workflow_stage="post-procedure-clearing",
+        use_state="unused",
+        contamination_state="not-regulated",
+    )
+
+    context = session.for_item(
+        ItemContextOverride(
+            lifecycle="reusable",
+            product_id="catalog-7",
+            needle_attached=False,
+        )
+    )
+
+    assert context.workflow_stage == "post-procedure-clearing"
+    assert context.use_state == "unused"
+    assert context.contamination_state == "not-regulated"
+    assert context.lifecycle == "reusable"
+    assert context.product_id == "catalog-7"
+    assert context.needle_attached is False
+
+
+def test_session_context_rejects_invalid_override_type():
+    session = SessionContext(workflow_stage="post-procedure-clearing")
+
+    with pytest.raises(TypeError, match="ItemContextOverride"):
+        session.for_item(ItemContext(workflow_stage="post-procedure-clearing"))
 
 
 def test_recommendation_requires_an_action_and_matched_rule():

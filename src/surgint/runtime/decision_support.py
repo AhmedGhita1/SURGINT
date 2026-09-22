@@ -2,7 +2,14 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Optional, Union
 
-from surgint.decision import Decision, DecisionResolver, ItemContext, Observation
+from surgint.decision import (
+    Decision,
+    DecisionResolver,
+    ItemContext,
+    ItemContextOverride,
+    Observation,
+    SessionContext,
+)
 from surgint.runtime.inventory import (
     FinalInventory,
     FinalInventoryItem,
@@ -116,19 +123,22 @@ class InventoryDecisionSupport:
     def resolve_final_inventory(
         self,
         inventory: FinalInventory,
-        context: ItemContext,
+        context: Union[ItemContext, SessionContext],
+        overrides: Optional[Mapping[int, ItemContextOverride]] = None,
     ) -> FinalInventoryDecisions:
         """Resolve one decision for each finalized class estimate."""
 
         if not isinstance(inventory, FinalInventory):
             raise TypeError("inventory must be a FinalInventory")
-        if not isinstance(context, ItemContext):
-            raise TypeError("context must be an ItemContext")
+        contexts = _final_contexts(inventory, context, overrides)
 
         results = tuple(
             FinalInventoryDecision(
                 inventory_item=item,
-                decision=self._resolve_final_item(item, context),
+                decision=self._resolve_final_item(
+                    item,
+                    contexts[item.class_id],
+                ),
             )
             for item in inventory.items
         )
@@ -180,3 +190,48 @@ def _label_map(labels: Labels) -> dict[int, str]:
     if duplicates:
         raise ValueError(f"perception labels must be unique; duplicates={duplicates}")
     return mapping
+
+
+def _final_contexts(
+    inventory: FinalInventory,
+    context: Union[ItemContext, SessionContext],
+    overrides: Optional[Mapping[int, ItemContextOverride]],
+) -> dict[int, ItemContext]:
+    class_ids = {item.class_id for item in inventory.items}
+
+    if isinstance(context, ItemContext):
+        if overrides is not None:
+            raise ValueError("class overrides require a SessionContext")
+        return {class_id: context for class_id in class_ids}
+
+    if not isinstance(context, SessionContext):
+        raise TypeError("context must be an ItemContext or SessionContext")
+
+    if overrides is None:
+        override_map = {}
+    elif isinstance(overrides, Mapping):
+        override_map = dict(overrides)
+    else:
+        raise TypeError("overrides must be a mapping or None")
+
+    for class_id, override in override_map.items():
+        if (
+            isinstance(class_id, bool)
+            or not isinstance(class_id, int)
+            or class_id < 0
+        ):
+            raise ValueError("override class ids must be non-negative integers")
+        if not isinstance(override, ItemContextOverride):
+            raise TypeError(
+                f"override for class_id {class_id} must be an "
+                "ItemContextOverride"
+            )
+
+    unknown = sorted(set(override_map) - class_ids)
+    if unknown:
+        raise ValueError(f"overrides reference absent class ids {unknown}")
+
+    return {
+        class_id: context.for_item(override_map.get(class_id))
+        for class_id in class_ids
+    }

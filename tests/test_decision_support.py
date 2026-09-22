@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from surgint.decision import ItemContext
+from surgint.decision import ItemContext, ItemContextOverride, SessionContext
 from surgint.model import Detections
 from surgint.runtime.decision_support import InventoryDecisionSupport
 from surgint.runtime.inventory import Inventory
@@ -159,3 +159,60 @@ def test_final_inventory_decision_result_is_immutable():
         result.frames = 2
     with pytest.raises(AttributeError):
         result.items[0].decision = None
+
+
+def test_final_inventory_composes_session_and_class_context():
+    inventory = Inventory()
+    inventory.update(tracked_frame([0, 1], [7, 8], [0.91, 0.88]))
+    support = InventoryDecisionSupport(
+        labels=["scalpel", "gauze"],
+        perception_version="perception-v1",
+    )
+    session = SessionContext(
+        workflow_stage="post-procedure-clearing",
+        use_state="unused",
+        contamination_state="not-regulated",
+    )
+
+    result = support.resolve_final_inventory(
+        inventory.finalize(),
+        session,
+        overrides={0: ItemContextOverride(lifecycle="reusable")},
+    ).by_class()
+
+    assert result[0].decision.action == "secure-transport-to-reprocessing"
+    assert result[1].decision.action == "facility-general-waste"
+
+
+def test_final_inventory_reports_lifecycle_conflict_for_human_review():
+    inventory = Inventory()
+    inventory.update(tracked_frame([0], [7], [0.91]))
+    support = InventoryDecisionSupport(
+        labels=["gauze"],
+        perception_version="perception-v1",
+    )
+
+    result = support.resolve_final_inventory(
+        inventory.finalize(),
+        SessionContext(workflow_stage="post-procedure-clearing"),
+        overrides={0: ItemContextOverride(lifecycle="reusable")},
+    ).by_class()[0]
+
+    assert result.decision.outcome == "human_review"
+    assert "conflicts" in result.decision.reason
+
+
+def test_final_inventory_rejects_override_for_absent_class():
+    inventory = Inventory()
+    inventory.update(tracked_frame([0], [7], [0.91]))
+    support = InventoryDecisionSupport(
+        labels=["scalpel"],
+        perception_version="perception-v1",
+    )
+
+    with pytest.raises(ValueError, match=r"absent class ids \[1\]"):
+        support.resolve_final_inventory(
+            inventory.finalize(),
+            SessionContext(workflow_stage="post-procedure-clearing"),
+            overrides={1: ItemContextOverride(lifecycle="reusable")},
+        )

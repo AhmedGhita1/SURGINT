@@ -71,6 +71,65 @@ class ItemContext:
 
 
 @dataclass(frozen=True)
+class ItemContextOverride:
+    """Facts that may differ between finalized inventory classes."""
+
+    needle_attached: Optional[bool] = None
+    product_id: Optional[str] = None
+    lifecycle: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.needle_attached is not None and not isinstance(
+            self.needle_attached, bool
+        ):
+            raise ValueError("needle_attached must be a bool or None")
+        if self.product_id is not None:
+            _text(self.product_id, "product_id")
+        _optional_choice(self.lifecycle, LIFECYCLES, "lifecycle")
+
+
+@dataclass(frozen=True)
+class SessionContext:
+    """Decision facts shared by every finalized class in one session."""
+
+    workflow_stage: str
+    decision_intent: str = "next-handling-action"
+    use_state: Optional[str] = None
+    contamination_state: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        _choice(self.workflow_stage, WORKFLOW_STAGES, "workflow_stage")
+        _text(self.decision_intent, "decision_intent")
+        _optional_choice(self.use_state, USE_STATES, "use_state")
+        _optional_choice(
+            self.contamination_state,
+            CONTAMINATION_STATES,
+            "contamination_state",
+        )
+
+    def for_item(
+        self,
+        override: Optional[ItemContextOverride] = None,
+    ) -> ItemContext:
+        """Compose shared session facts with one class-specific override."""
+
+        if override is None:
+            override = ItemContextOverride()
+        elif not isinstance(override, ItemContextOverride):
+            raise TypeError("override must be an ItemContextOverride")
+
+        return ItemContext(
+            workflow_stage=self.workflow_stage,
+            decision_intent=self.decision_intent,
+            use_state=self.use_state,
+            contamination_state=self.contamination_state,
+            needle_attached=override.needle_attached,
+            product_id=override.product_id,
+            lifecycle=override.lifecycle,
+        )
+
+
+@dataclass(frozen=True)
 class Decision:
     label: str
     confidence: float
