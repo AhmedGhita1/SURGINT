@@ -7,6 +7,7 @@ tests the per-session state built on top of the tracker.
 coverage:
 - accumulate:   an item stays after its track ends
 - counts:       distinct tracks per class, and the simultaneous lower bound
+- finalize:     track fragments become an immutable class-level estimate
 - class:        the latest class a track reports wins
 - reset:        state and frame counter cleared between sessions
 - task:         detections without track ids are rejected
@@ -72,6 +73,61 @@ def test_unit_counts():
     assert inventory.frame == 7, f"an empty frame still counts, got {inventory.frame}"
 
 
+def test_unit_finalize_consolidates_track_fragments():
+    """maximum simultaneous observations become the finalized count"""
+
+    inventory = Inventory()
+
+    # Two physical items are seen together. A later identity fragment must not
+    # make the finalized inventory claim that a third item existed.
+    inventory.update(frame([0, 0], [1, 2], scores=[0.8, 0.9]))
+    inventory.update(frame([0], [3], scores=[0.95]))
+
+    finalized = inventory.finalize()
+
+    assert finalized.frames == 2
+    assert finalized.counts() == {0: 2}
+    assert len(finalized.items) == 1
+
+    item = finalized.items[0]
+    assert item.class_id == 0
+    assert item.count == 2
+    assert item.distinct_tracks == 3
+    assert (item.first_seen, item.last_seen) == (0, 1)
+    assert item.observation_frames == 3
+    assert np.isclose(item.score, 0.95)
+
+
+def test_unit_finalize_is_immutable_and_detached():
+    """later tracking cannot mutate an already finalized result"""
+
+    inventory = Inventory()
+    inventory.update(frame([1], [7]))
+    finalized = inventory.finalize()
+
+    inventory.update(frame([1], [8]))
+
+    assert finalized.frames == 1
+    assert finalized.counts() == {1: 1}
+    assert finalized.items[0].distinct_tracks == 1
+
+    try:
+        finalized.frames = 2
+        assert False, "a finalized inventory must be immutable"
+    except AttributeError:
+        pass
+
+
+def test_unit_finalize_empty_session():
+    """an empty session produces an empty immutable result"""
+
+    finalized = Inventory().finalize()
+
+    assert finalized.frames == 0
+    assert finalized.items == ()
+    assert finalized.counts() == {}
+
+
 def test_unit_class():
     """the track already voted, so the inventory takes its latest answer"""
 
@@ -124,6 +180,9 @@ def test_unit_task():
 if __name__ == "__main__":
     test_unit_accumulate()
     test_unit_counts()
+    test_unit_finalize_consolidates_track_fragments()
+    test_unit_finalize_is_immutable_and_detached()
+    test_unit_finalize_empty_session()
     test_unit_class()
     test_unit_reset()
     test_unit_task()

@@ -17,6 +17,32 @@ class InventoryItem:
     score: float
 
 
+@dataclass(frozen=True)
+class FinalInventoryItem:
+    """Post-session class estimate with its supporting track evidence."""
+
+    class_id: int
+    count: int
+    distinct_tracks: int
+    first_seen: int
+    last_seen: int
+    observation_frames: int
+    score: float
+
+
+@dataclass(frozen=True)
+class FinalInventory:
+    """Immutable class-level inventory produced after a session ends."""
+
+    frames: int
+    items: tuple[FinalInventoryItem, ...]
+
+    def counts(self) -> Dict[int, int]:
+        """Return the finalized physical-count estimate for each class."""
+
+        return {item.class_id: item.count for item in self.items}
+
+
 class Inventory:
     """per-session instrument inventory, keyed by track id."""
 
@@ -61,3 +87,31 @@ class Inventory:
     def counts(self) -> Dict[int, int]:
         """distinct tracks per class."""
         return dict(Counter(item.class_id for item in self.items.values()))
+
+    def finalize(self) -> FinalInventory:
+        """Freeze a conservative class-level inventory for the session."""
+
+        grouped: Dict[int, list[InventoryItem]] = {}
+        for item in self.items.values():
+            grouped.setdefault(item.class_id, []).append(item)
+
+        finalized = []
+        for class_id, tracks in sorted(grouped.items()):
+            distinct_tracks = len(tracks)
+            count = min(
+                self.simultaneous.get(class_id, distinct_tracks),
+                distinct_tracks,
+            )
+            finalized.append(
+                FinalInventoryItem(
+                    class_id=class_id,
+                    count=count,
+                    distinct_tracks=distinct_tracks,
+                    first_seen=min(item.first_seen for item in tracks),
+                    last_seen=max(item.last_seen for item in tracks),
+                    observation_frames=sum(item.frames for item in tracks),
+                    score=max(item.score for item in tracks),
+                )
+            )
+
+        return FinalInventory(frames=self.frame, items=tuple(finalized))
