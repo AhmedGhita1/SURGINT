@@ -2,6 +2,8 @@
 
 *Surgical Instrument Intelligence*
 
+> **Status:** This project is under active development. APIs, configuration, and behavior may change.
+
 A real-time vision system for surgical instrument trays, from detection to handling decision.
 
 
