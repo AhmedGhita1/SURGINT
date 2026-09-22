@@ -1,27 +1,71 @@
-from owlready2 import VALUE, Restriction
+from dataclasses import dataclass
+from typing import Optional
 
-# the properties a detector class can carry. unasserted means unknown at this
-# label's resolution, not absent. see the ontology README.
-PROPERTIES = ("hasDisposalStatus", "hasHazardClass", "hasFunctionalRole")
+from owlready2 import Restriction, VALUE
+
+
+@dataclass(frozen=True)
+class ConceptFacts:
+    concept_iri: str
+    lifecycle: Optional[str]
+    intrinsic_sharp_hazard: Optional[str]
+    roles: tuple[str, ...]
 
 
 def concepts(ontology) -> dict:
-    """Detector labels mapped to ontology classes."""
+    """Map exact perception labels to their ontology classes."""
 
     mapping = {}
-    for concept in ontology.classes():
-        label = concept.label.first()
-        if label is None:
-            raise ValueError(f"{concept.name} carries no rdfs:label")
-        if str(label) in mapping:
-            raise ValueError(f"two classes share the label {label!r}")
-        mapping[str(label)] = concept
+    for concept in ontology.TrayItem.subclasses():
+        labels = [str(label) for label in concept.perceptionLabel]
+        if len(labels) != 1:
+            raise ValueError(
+                f"{concept.name} must have exactly one perception label; "
+                f"found {labels}"
+            )
+
+        label = labels[0]
+        if label in mapping:
+            raise ValueError(f"perception label {label!r} is not unique")
+        mapping[label] = concept
     return mapping
 
 
-def asserted(concept, prop) -> list:
-    """Return the values the class asserts for this property."""
+def facts(ontology, concept) -> ConceptFacts:
+    """Extract directly asserted category facts from an ontology class."""
 
+    lifecycle = _single(
+        _asserted_values(concept, ontology.hasLifecycleDesignation),
+        concept,
+        "hasLifecycleDesignation",
+    )
+    intrinsic_sharp_hazard = _single(
+        _asserted_values(concept, ontology.hasIntrinsicSharpHazard),
+        concept,
+        "hasIntrinsicSharpHazard",
+    )
+    roles = tuple(
+        sorted(
+            value.name
+            for value in _asserted_values(concept, ontology.hasFunctionalRole)
+        )
+    )
+
+    return ConceptFacts(
+        concept_iri=concept.iri,
+        lifecycle=lifecycle,
+        intrinsic_sharp_hazard=intrinsic_sharp_hazard,
+        roles=roles,
+    )
+
+
+def unmapped(labels, mapping: dict) -> list:
+    """Return perception labels with no ontology concept."""
+
+    return [label for label in labels if label not in mapping]
+
+
+def _asserted_values(concept, prop) -> list:
     return [
         restriction.value
         for restriction in concept.is_a
@@ -31,28 +75,9 @@ def asserted(concept, prop) -> list:
     ]
 
 
-def facts(ontology, concept) -> dict:
-    """Return the facts asserted by the class."""
-
-    values = {
-        name: [individual.name for individual in asserted(concept, ontology[name])]
-        for name in PROPERTIES
-    }
-    return {
-        "disposal": _single(values["hasDisposalStatus"], concept, "hasDisposalStatus"),
-        "hazard": _single(values["hasHazardClass"], concept, "hasHazardClass"),
-        "roles": values["hasFunctionalRole"],
-    }
-
-
-def _single(values: list, concept, name: str):
-    """Return the single value of a functional property, or None if unasserted."""
-
+def _single(values: list, concept, property_name: str) -> Optional[str]:
     if len(values) > 1:
-        raise ValueError(f"{concept.name} asserts {len(values)} values for {name}")
-    return values[0] if values else None
-
-
-def unmapped(labels, mapping: dict) -> list:
-    """Return the labels that do not map to an ontology class."""
-    return [label for label in labels if label not in mapping]
+        raise ValueError(
+            f"{concept.name} asserts multiple values for {property_name}"
+        )
+    return values[0].name if values else None
