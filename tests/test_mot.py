@@ -4,8 +4,7 @@ MOT metric tests
 
 tests the scoring of tracked sequences against ground truth with track ids.
 
-a sequence is a list of (gt_boxes, gt_ids, boxes, track_ids), one entry per frame,
-in order. the boxes here are built by hand, so the counts are exact.
+a sequence is an ordered list of (gt_boxes, gt_ids, boxes, track_ids), one entry per frame. 
 
 coverage:
 - perfect:   ground truth as the prediction scores 1.0
