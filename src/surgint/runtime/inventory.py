@@ -22,6 +22,7 @@ class FinalInventoryItem:
     """Post-session class estimate with its supporting track evidence."""
 
     class_id: int
+    representative_track_id: int
     count: int
     distinct_tracks: int
     first_seen: int
@@ -98,6 +99,10 @@ class Inventory:
         finalized = []
         for class_id, tracks in sorted(grouped.items()):
             distinct_tracks = len(tracks)
+            representative = max(
+                tracks,
+                key=lambda item: (item.score, item.frames, -item.track_id),
+            )
             count = min(
                 self.simultaneous.get(class_id, distinct_tracks),
                 distinct_tracks,
@@ -105,12 +110,13 @@ class Inventory:
             finalized.append(
                 FinalInventoryItem(
                     class_id=class_id,
+                    representative_track_id=representative.track_id,
                     count=count,
                     distinct_tracks=distinct_tracks,
                     first_seen=min(item.first_seen for item in tracks),
                     last_seen=max(item.last_seen for item in tracks),
                     observation_frames=sum(item.frames for item in tracks),
-                    score=max(item.score for item in tracks),
+                    score=representative.score,
                 )
             )
 

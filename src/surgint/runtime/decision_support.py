@@ -1,11 +1,42 @@
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Optional, Union
 
 from surgint.decision import Decision, DecisionResolver, ItemContext, Observation
-from surgint.runtime.inventory import Inventory, InventoryItem
+from surgint.runtime.inventory import (
+    FinalInventory,
+    FinalInventoryItem,
+    Inventory,
+    InventoryItem,
+)
 
 Labels = Union[Mapping[int, str], Sequence[str]]
 Contexts = Union[ItemContext, Mapping[int, ItemContext]]
+
+
+@dataclass(frozen=True)
+class FinalInventoryDecision:
+    """One finalized class estimate and its policy decision."""
+
+    inventory_item: FinalInventoryItem
+    decision: Decision
+
+    @property
+    def class_id(self) -> int:
+        return self.inventory_item.class_id
+
+
+@dataclass(frozen=True)
+class FinalInventoryDecisions:
+    """Immutable post-session inventory and decision result."""
+
+    frames: int
+    items: tuple[FinalInventoryDecision, ...]
+
+    def by_class(self) -> dict[int, FinalInventoryDecision]:
+        """Return finalized results keyed by perception class id."""
+
+        return {item.class_id: item for item in self.items}
 
 
 class InventoryDecisionSupport:
@@ -81,6 +112,46 @@ class InventoryDecisionSupport:
                 )
             decisions[track_id] = self.resolve_item(item, context)
         return decisions
+
+    def resolve_final_inventory(
+        self,
+        inventory: FinalInventory,
+        context: ItemContext,
+    ) -> FinalInventoryDecisions:
+        """Resolve one decision for each finalized class estimate."""
+
+        if not isinstance(inventory, FinalInventory):
+            raise TypeError("inventory must be a FinalInventory")
+        if not isinstance(context, ItemContext):
+            raise TypeError("context must be an ItemContext")
+
+        results = tuple(
+            FinalInventoryDecision(
+                inventory_item=item,
+                decision=self._resolve_final_item(item, context),
+            )
+            for item in inventory.items
+        )
+        return FinalInventoryDecisions(frames=inventory.frames, items=results)
+
+    def _resolve_final_item(
+        self,
+        item: FinalInventoryItem,
+        context: ItemContext,
+    ) -> Decision:
+        label = self.labels.get(item.class_id)
+        if label is None:
+            raise ValueError(
+                f"inventory class_id {item.class_id} has no perception label"
+            )
+
+        observation = Observation(
+            label=label,
+            confidence=item.score,
+            track_id=item.representative_track_id,
+            perception_version=self.perception_version,
+        )
+        return self.resolver.resolve(observation, context)
 
 
 def _label_map(labels: Labels) -> dict[int, str]:

@@ -91,6 +91,7 @@ def test_unit_finalize_consolidates_track_fragments():
 
     item = finalized.items[0]
     assert item.class_id == 0
+    assert item.representative_track_id == 3
     assert item.count == 2
     assert item.distinct_tracks == 3
     assert (item.first_seen, item.last_seen) == (0, 1)

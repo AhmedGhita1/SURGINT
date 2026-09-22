@@ -114,3 +114,48 @@ def test_label_map_rejects_duplicate_perception_labels():
             labels=["scalpel", "scalpel"],
             perception_version="perception-v1",
         )
+
+
+def test_final_inventory_resolves_once_per_class_after_fragmentation():
+    inventory = Inventory()
+    inventory.update(tracked_frame([0, 0], [7, 8], [0.91, 0.88]))
+    inventory.update(tracked_frame([0], [9], [0.95]))
+    support = InventoryDecisionSupport(
+        labels=["scalpel"],
+        perception_version="perception-v1",
+    )
+
+    result = support.resolve_final_inventory(
+        inventory.finalize(),
+        post_procedure(lifecycle="reusable"),
+    )
+
+    assert result.frames == 2
+    assert len(result.items) == 1
+    assert set(result.by_class()) == {0}
+
+    resolved = result.by_class()[0]
+    assert resolved.inventory_item.count == 2
+    assert resolved.inventory_item.distinct_tracks == 3
+    assert resolved.decision.track_id == 9
+    assert resolved.decision.outcome == "recommendation"
+    assert resolved.decision.action == "secure-transport-to-reprocessing"
+
+
+def test_final_inventory_decision_result_is_immutable():
+    inventory = Inventory()
+    inventory.update(tracked_frame([0], [7], [0.91]))
+    support = InventoryDecisionSupport(
+        labels=["scalpel"],
+        perception_version="perception-v1",
+    )
+
+    result = support.resolve_final_inventory(
+        inventory.finalize(),
+        post_procedure(lifecycle="reusable"),
+    )
+
+    with pytest.raises(AttributeError):
+        result.frames = 2
+    with pytest.raises(AttributeError):
+        result.items[0].decision = None
