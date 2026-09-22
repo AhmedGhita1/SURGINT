@@ -1,21 +1,25 @@
 import numpy as np
 import torch
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 
 def decode(
     logits: torch.Tensor,
     pred_boxes: torch.Tensor,
     score_threshold: float,
+    max_detections: Optional[int] = None,
 ) -> List[Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """per image, the surviving queries as normalized cxcywh with scores and class ids,
-    highest score first. one class per query, so one query is never two detections"""
+    highest score first. one class per query, so one query is never two detections.
+    max_detections keeps only the top k"""
     scores, class_ids = logits.sigmoid().max(dim=-1)
 
     detections = []
     for image in range(logits.shape[0]):
         keep = scores[image] > score_threshold
         order = scores[image][keep].argsort(descending=True)
+        if max_detections is not None:
+            order = order[:max_detections]
         detections.append(
             (
                 pred_boxes[image][keep][order].numpy().astype(np.float32),

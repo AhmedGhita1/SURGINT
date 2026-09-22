@@ -6,8 +6,7 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset
 
-
-TASKS = ("detection-only", "detection-tracking")
+from surgint.model import TASKS
 
 
 class SurgintDataset(Dataset):

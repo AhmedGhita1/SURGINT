@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yaml
 
+from surgint.model import TASKS
+
 ADJECTIVES = "brisk calm dry eager fair glad keen lone mild neat proud quick rare sharp tidy warm".split()
 NOUNS = "adder bison crane dingo eagle falcon gecko heron ibis jackal koala lynx mink otter puma raven".split()
 
@@ -14,12 +16,17 @@ class Config:
     checkpoint: str = "PekingU/rtdetr_r18vd_coco_o365"
     input_size: list[int] = field(default_factory=lambda: [1024, 576])
 
+    task: str = "detection-only"
     dataset_id: str = "production_v1"
     data_root: str = "data/synthetic/production_v1/dataset"
     run_dir: str = "outputs/runs"
     run_id: str = ""
     split: str = "val"
     splits: list[str] = field(default_factory=lambda: ["train", "val"])
+    sessions: list[str] = field(default_factory=list)
+    tracker: dict = field(default_factory=dict)
+    max_detections: int | None = None
+    nms_iou: float | None = None
     iou_threshold: float = 0.5
     metrics: list[str] = field(default_factory=lambda: ["mAP50_95", "mAP50", "mAP75"])
     select_metric: str = "mAP50_95"
@@ -49,6 +56,8 @@ class Config:
             raise ValueError(f"batch_size must be positive, got {self.batch_size}")
         if self.select_metric not in self.metrics:
             raise ValueError(f"select_metric {self.select_metric} is not in metrics {self.metrics}")
+        if self.task not in TASKS:
+            raise ValueError(f"task must be one of {TASKS}, got {self.task!r}")
         if self.schedule not in ("cosine", "constant"):
             raise ValueError(f"schedule must be cosine or constant, got {self.schedule}")
         if not self.run_id:

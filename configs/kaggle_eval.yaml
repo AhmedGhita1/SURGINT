@@ -1,8 +1,9 @@
 dataset_id: production_v5
-data_root: data/synthetic/production_v5/dataset
-run_dir: outputs/runs
+data_root: /kaggle/working/data
+run_dir: /kaggle/working/runs
+
 task: detection-only
-split: val
+split: eval
 batch_size: 8
 
 metrics: [mAP50_95, mAP50, mAP75]

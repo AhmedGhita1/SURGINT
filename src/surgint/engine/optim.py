@@ -34,7 +34,7 @@ def build_scheduler(optimizer: AdamW, config: Config, total_steps: int) -> Lambd
 
 
 def freeze_batchnorm(model: torch.nn.Module) -> None:
-    """running statistics stay at their pretrained values"""
+    """freeze the running statistics of every BatchNorm2d."""
     for module in model.modules():
         if isinstance(module, torch.nn.BatchNorm2d):
             module.eval()

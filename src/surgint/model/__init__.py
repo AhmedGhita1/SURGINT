@@ -3,6 +3,9 @@ from typing import Optional
 
 import numpy as np
 
+# detection alone, or detection with track ids
+TASKS = ("detection-only", "detection-tracking")
+
 
 @dataclass(frozen=True)
 class Detections:

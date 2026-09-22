@@ -1,0 +1,27 @@
+dataset_id: production_v5
+data_root: /kaggle/input/datasets/ahmedghita/production-v5/dataset
+run_dir: /kaggle/working/runs
+
+task: detection-tracking
+
+# the seven sessions whose frames are all present. a gap inside a sequence breaks the
+# motion model, so a partial session is not evaluated
+split: eval
+sessions:
+  - session_000
+  - session_001
+  - session_002
+  - session_003
+  - session_004
+  - session_005
+  - session_014
+
+batch_size: 1
+iou_threshold: 0.5
+
+# the detector puts several boxes on one instrument. each extra box opens a second
+# track on it, which is most of the false positives and most of the id fragmentation
+nms_iou: 0.7
+
+metrics: [MOTA, IDF1, id_switches]
+select_metric: MOTA
