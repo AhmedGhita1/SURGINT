@@ -11,7 +11,7 @@ package on its own.
 
 coverage:
 - imports:  every third-party module the source imports is a declared dependency
-- resource: the ontology the loader reads is matched by a package-data pattern
+- resource: every file a loader reads is matched by a package-data pattern
 """
 
 import ast
@@ -22,7 +22,10 @@ from fnmatch import fnmatch
 from importlib.metadata import packages_distributions
 from pathlib import Path
 
-from surgint.ontology.loader import ONTOLOGY
+import pytest
+
+from surgint.ontology.loader import ONTOLOGY_FILE
+from surgint.policy.loader import POLICY_FILE
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src" / "surgint"
@@ -94,10 +97,14 @@ def test_source_imports_are_declared():
     assert not undeclared, f"undeclared third-party imports: {report}"
 
 
-def test_loaded_ontology_is_packaged():
-    """the serialization the loader reads is included as package data"""
-    patterns = metadata()["tool"]["setuptools"]["package-data"]["surgint.ontology"]
+@pytest.mark.parametrize(
+    "package, resource",
+    [("surgint.ontology", ONTOLOGY_FILE), ("surgint.policy", POLICY_FILE)],
+)
+def test_loaded_resources_are_packaged(package, resource):
+    """every file a loader reads at runtime is included as package data"""
+    patterns = metadata()["tool"]["setuptools"]["package-data"][package]
 
-    assert any(fnmatch(ONTOLOGY, pattern) for pattern in patterns), (
-        f"{ONTOLOGY} matches no package-data pattern in {patterns}"
+    assert any(fnmatch(resource, pattern) for pattern in patterns), (
+        f"{resource} matches no package-data pattern for {package} in {patterns}"
     )
