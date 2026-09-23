@@ -41,6 +41,7 @@ def train(config: Config, device: str) -> Dict:
     detector = Detector.from_pretrained(
         config.checkpoint,
         {class_id: name for class_id, (_, name) in train_set.mappings.items()},
+        config.revision,
     ).to(device)
 
     trainer = Trainer(
@@ -54,7 +55,13 @@ def train(config: Config, device: str) -> Dict:
     run_dir = Path(config.run_dir) / config.run_id
     writer = RunWriter(run_dir)
     categories = [name for _, name in train_set.mappings.values()]
-    writer.initialize(config, categories, config.checkpoint)
+    writer.initialize(
+        config,
+        categories,
+        config.checkpoint,
+        detector.revision,
+        [train_set.annotations, val_set.annotations],
+    )
 
     meta = {
         "input_size": config.input_size,

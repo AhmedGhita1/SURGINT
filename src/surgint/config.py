@@ -14,6 +14,7 @@ NOUNS = "adder bison crane dingo eagle falcon gecko heron ibis jackal koala lynx
 @dataclass
 class Config:
     checkpoint: str = "PekingU/rtdetr_r18vd_coco_o365"
+    revision: str | None = None
     input_size: list[int] = field(default_factory=lambda: [1024, 576])
 
     task: str = "detection-only"

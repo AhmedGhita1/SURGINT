@@ -26,13 +26,19 @@ class Detector(nn.Module):
         )
 
     @classmethod
-    def from_pretrained(cls, checkpoint: str, id2label: Dict[int, str]) -> "Detector":
+    def from_pretrained(
+        cls,
+        checkpoint: str,
+        id2label: Dict[int, str],
+        revision: Optional[str] = None,
+    ) -> "Detector":
         """loads a pretrained checkpoint with the classifier reinitialized and resized to id2label"""
         return cls(
             cast(
                 RTDetrForObjectDetection,
                 RTDetrForObjectDetection.from_pretrained(
                     checkpoint,
+                    revision=revision,
                     id2label=id2label,
                     label2id={name: index for index, name in id2label.items()},
                     ignore_mismatched_sizes=True,
@@ -43,6 +49,11 @@ class Detector(nn.Module):
     @property
     def id2label(self) -> Dict[int, str]:
         return self.model.config.id2label
+
+    @property
+    def revision(self) -> Optional[str]:
+        """the hub commit the weights were resolved from."""
+        return getattr(self.model.config, "_commit_hash", None)
 
     def parameter_split(self) -> Tuple[List[nn.Parameter], List[nn.Parameter]]:
         """backbone and head parameters"""

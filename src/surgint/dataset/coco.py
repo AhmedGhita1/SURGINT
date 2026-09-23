@@ -29,6 +29,7 @@ class SurgintDataset(Dataset):
         tracking = task == "detection-tracking"
 
         annos_path = self.root / "annotations" / self.split.parent / f"instances_{self.split.name}.json"
+        self.annotations = annos_path
         self.gt = json.loads(annos_path.read_text())
 
         classes = sorted(self.gt["categories"], key=lambda category: category["id"])
