@@ -6,17 +6,21 @@ tests the model layer: checkpoint loading, forward pass, predict pass, and the f
 
 coverage:
 - detections:   fields, dtypes, track_ids default
+- validation:   shapes, lengths, finite values, score range, id ranges, unique tracks
+- immutability: the arrays cannot be rewritten after construction
 - construction: id2label, head resized to N, a saved checkpoint round trip
 - predict:      shapes, plain cpu tensors, eval mode
 - forward:      loss with labels, gradients reach the weights
 - persistence:  meta.yaml round trip, missing meta.yaml
 """
 
+import re
 import tempfile
 from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 
 from surgint.model import Detections
@@ -192,10 +196,79 @@ def test_unit_forward():
     assert detector(pixel_values()).loss is None, "a forward without labels must not report a loss"
 
 
+def valid(count: int = 2) -> dict:
+    """the fields of a well formed frame, as keyword arguments"""
+    return {
+        "boxes": np.zeros((count, 4), dtype=np.float32),
+        "scores": np.zeros(count, dtype=np.float32),
+        "class_ids": np.zeros(count, dtype=np.int64),
+    }
+
+
+def test_unit_detections_validation():
+    """a frame that cannot be true is refused at the boundary, not passed on"""
+
+    cases = {
+        "boxes must have shape": {"boxes": np.zeros((2, 5), dtype=np.float32)},
+        "scores must have shape": {"scores": np.zeros((2, 1), dtype=np.float32)},
+        "same detections": {"scores": np.zeros(3, dtype=np.float32)},
+        "box coordinate must be finite": {"boxes": np.full((2, 4), np.nan, dtype=np.float32)},
+        "score must be finite": {"scores": np.full(2, np.inf, dtype=np.float32)},
+        "scores must be in [0, 1]": {"scores": np.full(2, 1.5, dtype=np.float32)},
+        "class ids must be non-negative": {"class_ids": np.full(2, -1, dtype=np.int64)},
+    }
+    for message, override in cases.items():
+        with pytest.raises(ValueError, match=re.escape(message)):
+            Detections(**{**valid(), **override})
+
+    # a list is not an array, and silently coercing one would hide the caller's bug
+    with pytest.raises(TypeError, match="must be a numpy array"):
+        Detections(**{**valid(), "boxes": [[0.0, 0.0, 1.0, 1.0], [0.0, 0.0, 1.0, 1.0]]})
+
+
+def test_unit_detections_track_ids():
+    """track ids have to name distinct instruments in the frame they describe"""
+
+    with pytest.raises(ValueError, match="unique within a frame"):
+        Detections(**valid(), track_ids=np.array([7, 7], dtype=np.int64))
+
+    with pytest.raises(ValueError, match="track ids must be non-negative"):
+        Detections(**valid(), track_ids=np.array([7, -1], dtype=np.int64))
+
+    # a tracked frame still has to agree with the boxes it came from
+    with pytest.raises(ValueError, match="same detections"):
+        Detections(**valid(), track_ids=np.array([7, 8, 9], dtype=np.int64))
+
+
+def test_unit_detections_empty_frame():
+    """a frame where nothing was detected is well formed"""
+
+    empty = Detections(**valid(0), track_ids=np.zeros(0, dtype=np.int64))
+
+    assert len(empty.boxes) == 0 and empty.boxes.shape == (0, 4), f"got {empty.boxes.shape}"
+    assert len(empty.track_ids) == 0
+
+
+def test_unit_detections_are_read_only():
+    """the frozen dataclass reaches the array contents, not only the field names"""
+
+    detections = Detections(**valid(), track_ids=np.array([7, 8], dtype=np.int64))
+
+    for name in ("boxes", "scores", "class_ids", "track_ids"):
+        array = getattr(detections, name)
+        assert not array.flags.writeable, f"{name} is still writeable"
+        with pytest.raises(ValueError, match="read-only"):
+            array[0] = 1
+
+
 if __name__ == "__main__":
     test_unit_detections()
     test_unit_construction()
     test_unit_persistence()
     test_unit_predict()
     test_unit_forward()
+    test_unit_detections_validation()
+    test_unit_detections_track_ids()
+    test_unit_detections_empty_frame()
+    test_unit_detections_are_read_only()
     print("\nall passed")
