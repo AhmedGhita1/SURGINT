@@ -21,7 +21,7 @@ coverage:
 import numpy as np
 import pytest
 
-from surgint.evaluation.mot import _match, mot_counts, mot_evaluate
+from surgint.evaluation.mot import mot_counts, mot_evaluate
 
 BOX_A = [10.0, 10.0, 50.0, 90.0]
 BOX_B = [200.0, 10.0, 240.0, 90.0]
@@ -146,20 +146,20 @@ SHARED = [0.0, 0.0, 10.0, 10.0]
 OVERLAPPING = [1.0, 0.0, 11.0, 10.0]
 
 
-def test_unit_one_prediction_matches_one_gt():
-    """a preserved pairing may not hand the same prediction to a second gt"""
+def test_unit_one_prediction_is_not_counted_twice():
+    """one prediction overlapping two gt boxes can satisfy only one of them"""
 
-    matches = _match(
-        np.array([SHARED, OVERLAPPING]), [1, 2],
-        np.array([SHARED]), [5],
-        0.5, {1: 5, 2: 5},
-    )
+    frames = sequence([
+        ([SHARED], [1], [SHARED], [5]),
+        ([SHARED], [2], [SHARED], [5]),
+        ([SHARED, OVERLAPPING], [1, 2], [SHARED], [5]),
+    ])
+    counts = mot_counts(frames)
 
-    predictions = [prediction_index for _, prediction_index in matches]
-    truths = [gt_index for gt_index, _ in matches]
-    assert len(set(predictions)) == len(predictions), f"a prediction was reused: {matches}"
-    assert len(set(truths)) == len(truths), f"a gt was reused: {matches}"
-    assert len(matches) <= 1, f"one prediction cannot satisfy two gt: {matches}"
+    # three predictions over three frames, each fully matched, so nothing is spare
+    assert counts["predictions"] == 3, f"got {counts['predictions']}"
+    assert counts["fp"] == 0, f"a prediction was credited twice: fp {counts['fp']}"
+    assert counts["gt"] - counts["fn"] <= counts["predictions"], "more matches than predictions"
 
 
 def test_unit_shared_track_does_not_go_negative():
@@ -188,23 +188,29 @@ def test_unit_counts_never_go_negative():
             gt_count, prediction_count = int(rng.integers(0, 4)), int(rng.integers(0, 4))
             gt_boxes = [[x := float(rng.integers(0, 4)), 0.0, x + 10.0, 10.0] for _ in range(gt_count)]
             boxes = [[x := float(rng.integers(0, 4)), 0.0, x + 10.0, 10.0] for _ in range(prediction_count)]
-            gt_ids = list(rng.integers(1, 4, size=gt_count))
-            track_ids = list(rng.integers(1, 4, size=prediction_count))
+            # ids are unique within a frame, as they are in any real annotation
+            gt_ids = list(rng.choice(range(1, 6), gt_count, replace=False))
+            track_ids = list(rng.choice(range(1, 6), prediction_count, replace=False))
             frames.append((gt_boxes, gt_ids, boxes, track_ids))
 
         counts = mot_counts(sequence(frames))
         assert counts["fp"] >= 0 and counts["fn"] >= 0, f"negative count: {counts}"
         assert counts["idtp"] <= min(counts["gt"], counts["predictions"]), f"idtp too large: {counts}"
+        # a match consumes one box on each side, so it cannot exceed either total
+        matched = counts["gt"] - counts["fn"]
+        assert 0 <= matched <= min(counts["gt"], counts["predictions"]), f"bad match count: {counts}"
+        assert counts["class_correct"] <= matched, f"class_correct above matched: {counts}"
 
 
-def test_unit_negative_counts_are_refused(monkeypatch):
-    """a count that went negative stops the run instead of being reported"""
+def test_unit_repeated_ids_are_refused():
+    """an id naming two objects in one frame has no one-to-one matching to find"""
 
-    # the fixed matcher cannot produce a duplicate, so one is injected
-    monkeypatch.setattr("surgint.evaluation.mot._match", lambda *args: [(0, 0), (1, 0)])
+    with pytest.raises(ValueError, match="ground truth ids repeat"):
+        mot_counts(sequence([([SHARED, OVERLAPPING], [1, 1], [SHARED], [5])]))
 
-    with pytest.raises(ValueError, match="one-to-one"):
-        mot_counts(sequence([([SHARED, OVERLAPPING], [1, 2], [SHARED], [5])]))
+    with pytest.raises(ValueError, match="track ids repeat"):
+        mot_counts(sequence([([SHARED], [1], [SHARED, OVERLAPPING], [5, 5])]))
+
 
 def test_unit_class_accuracy_is_scored_apart_from_geometry():
     """a track on the right box with the wrong instrument keeps MOTA at 1.0"""
@@ -278,9 +284,10 @@ if __name__ == "__main__":
     test_unit_switches()
     test_unit_aggregate()
     test_unit_empty()
-    test_unit_one_prediction_matches_one_gt()
+    test_unit_one_prediction_is_not_counted_twice()
     test_unit_shared_track_does_not_go_negative()
     test_unit_counts_never_go_negative()
+    test_unit_repeated_ids_are_refused()
     test_unit_class_accuracy_is_scored_apart_from_geometry()
     test_unit_class_accuracy_is_one_when_labels_agree()
     test_unit_class_accuracy_counts_only_matched_pairs()

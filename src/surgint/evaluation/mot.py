@@ -1,11 +1,22 @@
-from collections import Counter
-
+import motmetrics as mm
 import numpy as np
-from scipy.optimize import linear_sum_assignment
 
 from surgint.model.boxes import iou_matrix
 
 COUNTS = ("frames", "gt", "predictions", "fp", "fn", "id_switches", "idtp", "class_correct")
+
+# motmetrics names for the counts above, in the same order after "frames"
+METRICS = (
+    "num_objects",
+    "num_predictions",
+    "num_false_positives",
+    "num_misses",
+    "num_switches",
+    "idtp",
+)
+
+# an object matched this frame is reported as one of these
+MATCHED = ("MATCH", "SWITCH")
 
 
 def mot_counts(frames, iou_threshold: float = 0.5) -> dict:
@@ -13,13 +24,14 @@ def mot_counts(frames, iou_threshold: float = 0.5) -> dict:
     counts for one sequence.
 
     frames are (gt_boxes, gt_ids, gt_classes, boxes, track_ids, class_ids), in order.
-    association ignores the class, so class_correct counts how many matched pairs
-    also agree on the instrument.
+    association is CLEAR MOT as implemented by motmetrics and ignores the class, so
+    class_correct counts how many matched pairs also agree on the instrument.
+
+    Raises:
+        ValueError: a frame has fewer classes than boxes, or repeats an id.
     """
-    last_match: dict[int, int] = {}
-    pairs: Counter = Counter()
-    gt_total = prediction_total = 0
-    fp = fn = id_switches = class_correct = 0
+    accumulator = mm.MOTAccumulator(auto_id=True)
+    classes = []
 
     for gt_boxes, gt_ids, gt_classes, boxes, track_ids, class_ids in frames:
         gt_boxes = np.asarray(gt_boxes, dtype=float).reshape(-1, 4)
@@ -34,39 +46,32 @@ def mot_counts(frames, iou_threshold: float = 0.5) -> dict:
                 f"every box needs a class: {len(gt_boxes)} gt boxes with {len(gt_classes)} "
                 f"classes, {len(boxes)} predictions with {len(class_ids)} classes"
             )
+        # an id naming two objects in one frame has no one-to-one matching to find
+        if len(np.unique(gt_ids)) != len(gt_ids):
+            raise ValueError(f"ground truth ids repeat within a frame: {gt_ids}")
+        if len(np.unique(track_ids)) != len(track_ids):
+            raise ValueError(f"track ids repeat within a frame: {track_ids}")
 
-        gt_total += len(gt_boxes)
-        prediction_total += len(boxes)
+        accumulator.update(gt_ids.tolist(), track_ids.tolist(), _distances(gt_boxes, boxes, iou_threshold))
+        classes.append((dict(zip(gt_ids.tolist(), gt_classes.tolist())),
+                        dict(zip(track_ids.tolist(), class_ids.tolist()))))
 
-        matches = _match(gt_boxes, gt_ids, boxes, track_ids, iou_threshold, last_match)
+    summary = mm.metrics.create().compute(accumulator, metrics=list(METRICS))
+    counts = {name: int(summary[name].iloc[0]) for name in METRICS}
 
-        for gt_index, prediction_index in matches:
-            gt_id, track_id = int(gt_ids[gt_index]), int(track_ids[prediction_index])
-            if last_match.get(gt_id, track_id) != track_id:
-                id_switches += 1
-            last_match[gt_id] = track_id
-            pairs[(gt_id, track_id)] += 1
-
-            # a mislabeled track is still a located track, so it counts here and not
-            # as a miss. MOTA and IDF1 stay comparable with the reference metrics
-            if int(gt_classes[gt_index]) == int(class_ids[prediction_index]):
-                class_correct += 1
-
-        fp += len(boxes) - len(matches)
-        fn += len(gt_boxes) - len(matches)
-
+    fp, fn = counts["num_false_positives"], counts["num_misses"]
     if fp < 0 or fn < 0:
         raise ValueError(f"matching was not one-to-one: fp {fp}, fn {fn}")
 
     return {
         "frames": len(frames),
-        "gt": gt_total,
-        "predictions": prediction_total,
+        "gt": counts["num_objects"],
+        "predictions": counts["num_predictions"],
         "fp": fp,
         "fn": fn,
-        "id_switches": id_switches,
-        "idtp": _id_true_positives(pairs),
-        "class_correct": class_correct,
+        "id_switches": counts["num_switches"],
+        "idtp": counts["idtp"],
+        "class_correct": _class_correct(accumulator, classes),
     }
 
 
@@ -103,53 +108,31 @@ def mot_evaluate(counts) -> dict:
     }
 
 
-def _match(gt_boxes, gt_ids, boxes, track_ids, iou_threshold, last_match):
-    """one frame. returns (gt index, prediction index) pairs above the iou threshold"""
+def _distances(gt_boxes: np.ndarray, boxes: np.ndarray, iou_threshold: float) -> np.ndarray:
+    """
+    the pairwise matching cost motmetrics consumes, as 1 - iou.
+
+    pairs below the threshold are nan, which motmetrics reads as unmatchable. the iou
+    comes from this project's own matrix so the threshold means the same thing here as
+    it does everywhere else.
+    """
     if not len(gt_boxes) or not len(boxes):
-        return []
+        return np.empty((len(gt_boxes), len(boxes)))
 
     ious = iou_matrix(gt_boxes, boxes)
-    matches = []
-    taken_gt, taken_prediction = set(), set()
-
-    # a pairing that held last frame is kept while it still clears the threshold. without
-    # this, the assignment is free to swap two overlapping objects and score a switch.
-    for gt_index, gt_id in enumerate(gt_ids):
-        previous = last_match.get(int(gt_id))
-        if previous is None:
-            continue
-        for prediction_index, track_id in enumerate(track_ids):
-            if prediction_index in taken_prediction:
-                continue
-            if int(track_id) == previous and ious[gt_index, prediction_index] >= iou_threshold:
-                matches.append((gt_index, prediction_index))
-                taken_gt.add(gt_index)
-                taken_prediction.add(prediction_index)
-                break
-
-    free_gt = [index for index in range(len(gt_ids)) if index not in taken_gt]
-    free_prediction = [index for index in range(len(track_ids)) if index not in taken_prediction]
-    if not free_gt or not free_prediction:
-        return matches
-
-    cost = 1.0 - ious[np.ix_(free_gt, free_prediction)]
-    for row, column in zip(*linear_sum_assignment(cost)):
-        if cost[row, column] <= 1.0 - iou_threshold:
-            matches.append((free_gt[row], free_prediction[column]))
-    return matches
+    cost = 1.0 - ious
+    cost[ious < iou_threshold] = np.nan
+    return cost
 
 
-def _id_true_positives(pairs: Counter) -> int:
-    """frames covered by the best one-to-one assignment of gt tracks to predicted tracks"""
-    if not pairs:
-        return 0
+def _class_correct(accumulator: mm.MOTAccumulator, classes: list) -> int:
+    """how many of the matched pairs name the same instrument on both sides"""
+    events = accumulator.mot_events.reset_index()
+    matched = events[events["Type"].isin(MATCHED)]
 
-    gt_ids = sorted({gt_id for gt_id, _ in pairs})
-    track_ids = sorted({track_id for _, track_id in pairs})
-
-    overlap = np.zeros((len(gt_ids), len(track_ids)))
-    for (gt_id, track_id), frames in pairs.items():
-        overlap[gt_ids.index(gt_id), track_ids.index(track_id)] = frames
-
-    rows, columns = linear_sum_assignment(-overlap)
-    return int(overlap[rows, columns].sum())
+    correct = 0
+    for frame, gt_id, track_id in zip(matched["FrameId"], matched["OId"], matched["HId"]):
+        gt_classes, class_ids = classes[int(frame)]
+        if gt_classes[int(gt_id)] == class_ids[int(track_id)]:
+            correct += 1
+    return correct

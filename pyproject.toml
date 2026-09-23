@@ -10,6 +10,7 @@ version = "0.1.0.dev0"
 requires-python = ">=3.10"
 dependencies = [
     "imageio[ffmpeg]==2.36.0",
+    "motmetrics==1.4.0",
     "numpy==1.26.4",
     "owlready2==0.47",
     "pillow==10.4.0",
