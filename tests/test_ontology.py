@@ -10,9 +10,11 @@ no detector is involved.
 coverage:
 - loading:  the package data loads and its version iri is the pinned one
 - mapping:  every class joins by rdfs:label, the facts match what is asserted
-- outcomes: each of the six is reachable, and the resolution order holds
+- outcomes: each of the seven is reachable, and the resolution order holds
+- input:    a malformed observation cannot produce a recommendation
 """
 
+import numpy as np
 import pytest
 
 from surgint.ontology import OUTCOMES, Ontology
@@ -127,6 +129,65 @@ def test_human_review(ontology, monkeypatch):
 
     assert decision.outcome == "human_review"
     assert "reasoner unavailable" in decision.reason
+
+
+# section G of the design doc: the observation is validated before the ontology is
+# consulted, so malformed input is not reported as an ontology failure
+MALFORMED = [
+    float("nan"),
+    float("inf"),
+    float("-inf"),
+    2.0,
+    -1.0,
+    -0.5,
+    "high",
+    None,
+]
+
+
+@pytest.mark.parametrize("confidence", MALFORMED)
+def test_malformed_confidence_cannot_recommend(ontology, confidence):
+    """a score that cannot be true never reaches a handling route"""
+    decision = ontology.resolve("gauze", confidence)
+
+    assert decision.outcome == "invalid_input", f"{confidence!r} gave {decision.outcome}"
+    assert decision.route is None, f"{confidence!r} produced route {decision.route!r}"
+    assert repr(confidence) in decision.reason, f"the reason hides the value: {decision.reason}"
+
+
+def test_invalid_input_outranks_the_catalog(ontology):
+    """a malformed score is checked before the label, so it is not hidden as a gap"""
+    assert ontology.resolve("clamp", float("nan")).outcome == "invalid_input"
+
+    # a label that is not a usable string is malformed in the same way
+    assert ontology.resolve("", 0.9).outcome == "invalid_input"
+    assert ontology.resolve(None, 0.9).outcome == "invalid_input"
+
+
+@pytest.mark.parametrize("confidence", [0.0, 1.0, 0.5, np.float32(0.9), np.float64(0.9), 1])
+def test_valid_confidence_is_accepted(ontology, confidence):
+    """the boundaries and a numpy score are valid, so the gate still decides them"""
+    outcome = ontology.resolve("gauze", confidence).outcome
+
+    # a numpy score must not be rejected for its type: detector scores are float32
+    assert outcome != "invalid_input", f"{type(confidence).__name__} {confidence!r} was refused"
+    assert outcome in OUTCOMES
+
+
+@pytest.mark.parametrize("threshold", [-1.0, 1.5, float("nan"), float("inf"), "x", None])
+def test_invalid_threshold_is_a_startup_error(threshold):
+    """the gate is deployment configuration, so a bad one fails loudly and at once"""
+    with pytest.raises(ValueError, match=r"low_confidence must be a finite number"):
+        Ontology(low_confidence=threshold)
+
+
+def test_a_zero_threshold_still_gates_nothing_silently(ontology):
+    """0.0 is a legal gate, so it is accepted and every valid score clears it"""
+    permissive = Ontology(low_confidence=0.0)
+
+    assert permissive.resolve("gauze", 0.0).outcome == "recommendation"
+    # the gate being open does not weaken the input check
+    assert permissive.resolve("gauze", float("nan")).outcome == "invalid_input"
 
 
 def test_taxonomy_resolves_to_a_known_outcome(ontology):

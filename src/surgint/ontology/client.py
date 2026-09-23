@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from typing import Optional
 
@@ -11,6 +12,7 @@ OUTCOMES = (
     "missing_info",
     "missing_policy",
     "unsupported_item",
+    "invalid_input",
     "human_review",
 )
 
@@ -26,6 +28,17 @@ ROUTES = {
 
 # below this the detector was not sure enough to act on
 LOW_CONFIDENCE = 0.5
+
+
+def _valid_score(value) -> bool:
+    """Whether value is a finite number in [0, 1].
+
+    Accepts any real number, so a numpy score is not rejected for its type.
+    """
+    try:
+        return math.isfinite(value) and 0.0 <= value <= 1.0
+    except TypeError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -44,6 +57,19 @@ class Ontology:
     """resolves an inventory item to a handling route."""
 
     def __init__(self, low_confidence: float = LOW_CONFIDENCE):
+        """
+        Load the packaged ontology and set the confidence gate.
+
+        Raises:
+            ValueError: low_confidence is not a finite number in [0, 1].
+        """
+        # the gate is deployment configuration, so a bad one is a startup error and
+        # never a per-item outcome
+        if not _valid_score(low_confidence):
+            raise ValueError(
+                f"low_confidence must be a finite number in [0, 1], got {low_confidence!r}"
+            )
+
         self.world, self.ontology = load()
         self.version = version_iri(self.world)
         self.concepts = concepts(self.ontology)
@@ -54,7 +80,10 @@ class Ontology:
         return unmapped(labels, self.concepts)
 
     def resolve(self, label: str, confidence: float) -> Decision:
-        """Resolve one label and confidence to a single outcome."""
+        """Resolve one label and confidence to a single outcome.
+
+        A malformed label or confidence resolves to invalid_input.
+        """
         try:
             return self._resolve(label, confidence)
         except Exception as error:
@@ -62,6 +91,21 @@ class Ontology:
             return self._decision(label, "human_review", None, str(error))
 
     def _resolve(self, label: str, confidence: float) -> Decision:
+        # the observation is checked before the ontology is consulted. malformed input
+        # is not an ontology failure, and it is returned rather than raised so that the
+        # catch in resolve does not report it as a reasoner fault
+        if not isinstance(label, str) or not label:
+            return self._decision(
+                label, "invalid_input", None, f"label must be a non-empty string, got {label!r}"
+            )
+        if not _valid_score(confidence):
+            return self._decision(
+                label,
+                "invalid_input",
+                None,
+                f"confidence must be a finite number in [0, 1], got {confidence!r}",
+            )
+
         concept = self.concepts.get(label)
         if concept is None:
             return self._decision(
