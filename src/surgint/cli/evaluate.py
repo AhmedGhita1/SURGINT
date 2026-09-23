@@ -34,7 +34,7 @@ def run_detection(config: Config, checkpoint: Path, device: str) -> Dict:
 
     run_dir = Path(config.run_dir) / config.run_id
     writer = RunWriter(run_dir)
-    writer.initialize(config, categories, str(checkpoint))
+    writer.initialize(config, categories, str(checkpoint), annotations=[dataset.annotations])
 
     metrics = evaluate(detector, build_loader(dataset, config.batch_size, shuffle=False), transform)
 
@@ -80,9 +80,14 @@ def run_sessions(config: Config, checkpoint: Path, device: str) -> Dict:
 
     run_dir = Path(config.run_dir) / config.run_id
     writer = RunWriter(run_dir)
-    writer.initialize(config, categories, str(checkpoint))
+    writer.initialize(
+        config,
+        categories,
+        str(checkpoint),
+        annotations=[dataset.annotations for dataset in sessions.values()],
+    )
 
-    metrics = evaluate_sessions(pipeline, sessions)
+    metrics = evaluate_sessions(pipeline, sessions, config.iou_threshold)
     frames = sum(len(dataset) for dataset in sessions.values())
 
     summary = {

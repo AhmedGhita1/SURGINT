@@ -9,9 +9,21 @@ readme = "README.md"
 version = "0.1.0.dev0"
 requires-python = ">=3.10"
 dependencies = [
+    "imageio[ffmpeg]==2.36.0",
+    "motmetrics==1.4.0",
+    "numpy==1.26.4",
     "owlready2==0.47",
+    "pillow==10.4.0",
+    "pycocotools==2.0.8",
     "pyyaml==6.0.2",
+    "scipy==1.14.1",
+    "torch==2.4.1",
+    "tqdm==4.68.3",
+    "transformers==4.46.3",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest==8.3.3"]
 
 [project.scripts]
 train = "surgint.cli.train:main"

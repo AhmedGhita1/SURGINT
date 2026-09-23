@@ -23,5 +23,5 @@ iou_threshold: 0.5
 # track on it, which is most of the false positives and most of the id fragmentation
 nms_iou: 0.7
 
-metrics: [MOTA, IDF1, id_switches]
+metrics: [MOTA, IDF1, class_accuracy, id_switches]
 select_metric: MOTA

@@ -14,6 +14,7 @@ NOUNS = "adder bison crane dingo eagle falcon gecko heron ibis jackal koala lynx
 @dataclass
 class Config:
     checkpoint: str = "PekingU/rtdetr_r18vd_coco_o365"
+    revision: str | None = None
     input_size: list[int] = field(default_factory=lambda: [1024, 576])
 
     task: str = "detection-only"
@@ -50,6 +51,8 @@ class Config:
             raise ValueError(f"input_size must be [width, height], got {self.input_size}")
         if any(v <= 0 or v % 32 for v in self.input_size):
             raise ValueError(f"input_size must be positive and divisible by 32, got {self.input_size}")
+        if not 0.0 < self.iou_threshold <= 1.0:
+            raise ValueError(f"iou_threshold must be in (0, 1], got {self.iou_threshold}")
         if self.val_interval <= 0:
             raise ValueError(f"val_interval must be positive, got {self.val_interval}")
         if self.batch_size <= 0:
