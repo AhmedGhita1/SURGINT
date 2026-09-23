@@ -87,7 +87,7 @@ def run_sessions(config: Config, checkpoint: Path, device: str) -> Dict:
         annotations=[dataset.annotations for dataset in sessions.values()],
     )
 
-    metrics = evaluate_sessions(pipeline, sessions)
+    metrics = evaluate_sessions(pipeline, sessions, config.iou_threshold)
     frames = sum(len(dataset) for dataset in sessions.values())
 
     summary = {

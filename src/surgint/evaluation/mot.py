@@ -5,21 +5,35 @@ from scipy.optimize import linear_sum_assignment
 
 from surgint.model.boxes import iou_matrix
 
-COUNTS = ("frames", "gt", "predictions", "fp", "fn", "id_switches", "idtp")
+COUNTS = ("frames", "gt", "predictions", "fp", "fn", "id_switches", "idtp", "class_correct")
 
 
 def mot_counts(frames, iou_threshold: float = 0.5) -> dict:
-    """counts for one sequence. frames are (gt_boxes, gt_ids, boxes, track_ids), in order"""
+    """
+    counts for one sequence.
+
+    frames are (gt_boxes, gt_ids, gt_classes, boxes, track_ids, class_ids), in order.
+    association ignores the class, so class_correct counts how many matched pairs
+    also agree on the instrument.
+    """
     last_match: dict[int, int] = {}
     pairs: Counter = Counter()
     gt_total = prediction_total = 0
-    fp = fn = id_switches = 0
+    fp = fn = id_switches = class_correct = 0
 
-    for gt_boxes, gt_ids, boxes, track_ids in frames:
+    for gt_boxes, gt_ids, gt_classes, boxes, track_ids, class_ids in frames:
         gt_boxes = np.asarray(gt_boxes, dtype=float).reshape(-1, 4)
         boxes = np.asarray(boxes, dtype=float).reshape(-1, 4)
         gt_ids = np.asarray(gt_ids, dtype=np.int64).reshape(-1)
         track_ids = np.asarray(track_ids, dtype=np.int64).reshape(-1)
+        gt_classes = np.asarray(gt_classes, dtype=np.int64).reshape(-1)
+        class_ids = np.asarray(class_ids, dtype=np.int64).reshape(-1)
+
+        if len(gt_classes) != len(gt_boxes) or len(class_ids) != len(boxes):
+            raise ValueError(
+                f"every box needs a class: {len(gt_boxes)} gt boxes with {len(gt_classes)} "
+                f"classes, {len(boxes)} predictions with {len(class_ids)} classes"
+            )
 
         gt_total += len(gt_boxes)
         prediction_total += len(boxes)
@@ -32,6 +46,11 @@ def mot_counts(frames, iou_threshold: float = 0.5) -> dict:
                 id_switches += 1
             last_match[gt_id] = track_id
             pairs[(gt_id, track_id)] += 1
+
+            # a mislabeled track is still a located track, so it counts here and not
+            # as a miss. MOTA and IDF1 stay comparable with the reference metrics
+            if int(gt_classes[gt_index]) == int(class_ids[prediction_index]):
+                class_correct += 1
 
         fp += len(boxes) - len(matches)
         fn += len(gt_boxes) - len(matches)
@@ -47,11 +66,17 @@ def mot_counts(frames, iou_threshold: float = 0.5) -> dict:
         "fn": fn,
         "id_switches": id_switches,
         "idtp": _id_true_positives(pairs),
+        "class_correct": class_correct,
     }
 
 
 def mot_evaluate(counts) -> dict:
-    """MOTA, IDF1 and id switches over one or more sequences"""
+    """
+    MOTA, IDF1, class accuracy and id switches over one or more sequences.
+
+    MOTA and IDF1 score geometry and identity. class_accuracy is the share of matched
+    pairs that agree on the instrument, so a mislabeled track is visible separately.
+    """
     if isinstance(counts, dict):
         counts = [counts]
     total = {key: sum(int(entry[key]) for entry in counts) for key in COUNTS}
@@ -64,12 +89,17 @@ def mot_evaluate(counts) -> dict:
     denominator = 2 * total["idtp"] + id_fp + id_fn
     idf1 = 2 * total["idtp"] / denominator if denominator else 0.0
 
+    # every match consumes one ground truth box, so this is the matched pair count
+    matched = total["gt"] - total["fn"]
+    class_accuracy = total["class_correct"] / matched if matched else 0.0
+
     return {
         "MOTA": float(mota),
         "IDF1": float(idf1),
+        "class_accuracy": float(class_accuracy),
         "id_switches": total["id_switches"],
         "sequences": len(counts),
-        **{key: total[key] for key in ("frames", "gt", "predictions", "fp", "fn")},
+        **{key: total[key] for key in ("frames", "gt", "predictions", "fp", "fn", "class_correct")},
     }
 
 

@@ -13,6 +13,8 @@ coverage:
 - counts:   the aggregate and the per session entries agree
 - ordering: frames reach the tracker in index order
 - task:     a detection-only pipeline is rejected
+- classes:  the ground truth class reaches the metric
+- threshold: the iou threshold handed in is the one used
 """
 
 import numpy as np
@@ -38,22 +40,24 @@ class StubPipeline:
 
     def predict(self, frame, score_threshold):
         self.seen.append(int(frame[0, 0]))
-        boxes, track_ids = self.outputs[len(self.seen) - 1]
+        output = self.outputs[len(self.seen) - 1]
+        boxes, track_ids = output[0], output[1]
+        class_ids = output[2] if len(output) > 2 else np.zeros(len(boxes), dtype=np.int64)
         return Detections(
             np.asarray(boxes, dtype=np.float32).reshape(-1, 4),
             np.ones(len(boxes), dtype=np.float32),
-            np.zeros(len(boxes), dtype=np.int64),
+            np.asarray(class_ids, dtype=np.int64).reshape(-1),
             np.asarray(track_ids, dtype=np.int64),
         )
 
 
-def samples(count, marker):
+def samples(count, marker, class_id=0):
     """a session of `count` frames, each frame tagged with `marker` so order is checkable"""
     return [
         {
             "frame": np.full((4, 4), marker + index, dtype=np.uint8),
             "boxes": BOX.reshape(1, 4),
-            "class_ids": np.zeros(1, dtype=np.int64),
+            "class_ids": np.full(1, class_id, dtype=np.int64),
             "track_ids": np.array([1], dtype=np.int64),
             "image_id": index,
         }
@@ -116,9 +120,39 @@ def test_unit_task():
         assert "detection-only" in str(error), f"got {error}"
 
 
+def test_unit_classes_reach_the_metric():
+    """a tracked box with the wrong instrument lowers class accuracy, not MOTA"""
+
+    # ground truth is class 3, the stub predicts class 1 on the same box
+    wrong = np.array([1], dtype=np.int64)
+    pipeline = StubPipeline([([BOX], [1], wrong)] * 3)
+
+    result = evaluate_sessions(pipeline, {"session_000": samples(3, 0, class_id=3)})
+
+    assert result["MOTA"] == 1.0, f"the box was located every frame, got {result['MOTA']}"
+    assert result["class_accuracy"] == 0.0, f"no pair agrees, got {result['class_accuracy']}"
+    assert result["class_correct"] == 0, f"got {result['class_correct']}"
+
+
+def test_unit_threshold_is_forwarded():
+    """the threshold given to evaluate_sessions is the one the counts are scored at"""
+
+    # the prediction overlaps the ground truth at iou 0.538
+    offset = BOX + np.array([13.0, 0.0, 13.0, 0.0])
+    outputs = [([offset], [1])] * 2
+
+    lenient = evaluate_sessions(StubPipeline(outputs), {"session_000": samples(2, 0)}, 0.5)
+    strict = evaluate_sessions(StubPipeline(outputs), {"session_000": samples(2, 0)}, 0.9)
+
+    assert lenient["fn"] == 0, f"0.538 clears 0.5, got fn {lenient['fn']}"
+    assert strict["fn"] == 2, f"0.538 fails 0.9, got fn {strict['fn']}"
+
+
 if __name__ == "__main__":
     test_unit_reset()
     test_unit_counts()
     test_unit_ordering()
     test_unit_task()
+    test_unit_classes_reach_the_metric()
+    test_unit_threshold_is_forwarded()
     print("\nall passed")

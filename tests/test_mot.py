@@ -14,6 +14,8 @@ coverage:
 - aggregate: sequences are summed, not averaged
 - empty:     no ground truth and no predictions
 - one to one: a prediction is matched to at most one gt, and counts stay non negative
+- classes:   a mislabeled track is scored apart from geometry and identity
+- threshold: the configured iou threshold is the one applied
 """
 
 import numpy as np
@@ -26,12 +28,26 @@ BOX_B = [200.0, 10.0, 240.0, 90.0]
 
 
 def sequence(frames):
-    """(gt_boxes, gt_ids, boxes, track_ids) per frame, from plain lists"""
-    return [
-        (np.array(gt_boxes, dtype=float).reshape(-1, 4), gt_ids,
-         np.array(boxes, dtype=float).reshape(-1, 4), track_ids)
-        for gt_boxes, gt_ids, boxes, track_ids in frames
-    ]
+    """
+    one frame record per entry, from plain lists.
+
+    entries are (gt_boxes, gt_ids, boxes, track_ids) with every class left at 0, or
+    (gt_boxes, gt_ids, gt_classes, boxes, track_ids, class_ids) to set the classes.
+    """
+    records = []
+    for frame in frames:
+        if len(frame) == 4:
+            gt_boxes, gt_ids, boxes, track_ids = frame
+            gt_classes = [0] * len(gt_ids)
+            class_ids = [0] * len(track_ids)
+        else:
+            gt_boxes, gt_ids, gt_classes, boxes, track_ids, class_ids = frame
+
+        records.append((
+            np.array(gt_boxes, dtype=float).reshape(-1, 4), gt_ids, gt_classes,
+            np.array(boxes, dtype=float).reshape(-1, 4), track_ids, class_ids,
+        ))
+    return records
 
 
 def test_unit_perfect():
@@ -190,6 +206,71 @@ def test_unit_negative_counts_are_refused(monkeypatch):
     with pytest.raises(ValueError, match="one-to-one"):
         mot_counts(sequence([([SHARED, OVERLAPPING], [1, 2], [SHARED], [5])]))
 
+def test_unit_class_accuracy_is_scored_apart_from_geometry():
+    """a track on the right box with the wrong instrument keeps MOTA at 1.0"""
+
+    # gt class 3 every frame, the tracker calls it class 1 in two of four frames
+    frames = sequence([
+        ([BOX_A], [1], [3], [BOX_A], [7], [3]),
+        ([BOX_A], [1], [3], [BOX_A], [7], [1]),
+        ([BOX_A], [1], [3], [BOX_A], [7], [1]),
+        ([BOX_A], [1], [3], [BOX_A], [7], [3]),
+    ])
+    result = mot_evaluate(mot_counts(frames))
+
+    # geometry and identity are perfect, so the class error must not reach MOTA or IDF1
+    assert result["MOTA"] == 1.0, f"expected 1.0, got {result['MOTA']}"
+    assert result["IDF1"] == 1.0, f"expected 1.0, got {result['IDF1']}"
+    assert result["fp"] == 0 and result["fn"] == 0, "every box was located"
+
+    assert result["class_correct"] == 2, f"expected 2, got {result['class_correct']}"
+    assert np.isclose(result["class_accuracy"], 0.5), f"expected 0.5, got {result['class_accuracy']}"
+
+
+def test_unit_class_accuracy_is_one_when_labels_agree():
+    """the same sequence with the right instrument scores both dimensions perfectly"""
+
+    frames = sequence([([BOX_A, BOX_B], [1, 2], [3, 5], [BOX_A, BOX_B], [7, 8], [3, 5])] * 4)
+    result = mot_evaluate(mot_counts(frames))
+
+    assert result["MOTA"] == 1.0 and result["class_accuracy"] == 1.0
+    assert result["class_correct"] == 8, f"expected 8, got {result['class_correct']}"
+
+
+def test_unit_class_accuracy_counts_only_matched_pairs():
+    """an unmatched box has no pair to agree with, so it leaves the accuracy alone"""
+
+    # one located and correctly labeled instrument, one never detected
+    frames = sequence([([BOX_A, BOX_B], [1, 2], [3, 5], [BOX_A], [7], [3])] * 3)
+    result = mot_evaluate(mot_counts(frames))
+
+    assert result["fn"] == 3, f"expected 3, got {result['fn']}"
+    assert result["class_accuracy"] == 1.0, f"matched pairs all agree, got {result['class_accuracy']}"
+
+
+def test_unit_every_box_needs_a_class():
+    """a frame with classes missing is refused instead of scored"""
+
+    frames = [(np.array([BOX_A, BOX_B]), [1, 2], [3], np.array([BOX_A]), [7], [3])]
+
+    with pytest.raises(ValueError, match="every box needs a class"):
+        mot_counts(frames)
+
+
+def test_unit_iou_threshold_is_applied():
+    """the threshold passed in decides what counts as located"""
+
+    # iou is (10 - 3) / (10 + 3) = 0.538: above 0.5, below 0.9
+    offset = [3.0, 0.0, 13.0, 10.0]
+    frames = sequence([([[0.0, 0.0, 10.0, 10.0]], [1], [offset], [7])])
+
+    lenient = mot_evaluate(mot_counts(frames, iou_threshold=0.5))
+    strict = mot_evaluate(mot_counts(frames, iou_threshold=0.9))
+
+    assert lenient["fn"] == 0 and lenient["fp"] == 0, f"0.538 clears 0.5: {lenient}"
+    assert strict["fn"] == 1 and strict["fp"] == 1, f"0.538 fails 0.9: {strict}"
+
+
 if __name__ == "__main__":
     test_unit_perfect()
     test_unit_misses()
@@ -197,4 +278,12 @@ if __name__ == "__main__":
     test_unit_switches()
     test_unit_aggregate()
     test_unit_empty()
+    test_unit_one_prediction_matches_one_gt()
+    test_unit_shared_track_does_not_go_negative()
+    test_unit_counts_never_go_negative()
+    test_unit_class_accuracy_is_scored_apart_from_geometry()
+    test_unit_class_accuracy_is_one_when_labels_agree()
+    test_unit_class_accuracy_counts_only_matched_pairs()
+    test_unit_every_box_needs_a_class()
+    test_unit_iou_threshold_is_applied()
     print("\nall passed")

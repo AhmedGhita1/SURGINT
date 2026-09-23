@@ -36,12 +36,13 @@ def evaluate(detector: Detector, loader: DataLoader, transform: Transform) -> Di
     return coco_evaluate(dataset.gt, predictions)
 
 
-def evaluate_sessions(pipeline: Pipeline, sessions: Dict) -> Dict:
+def evaluate_sessions(pipeline: Pipeline, sessions: Dict, iou_threshold: float = 0.5) -> Dict:
     """
     evaluate the detector and tracker on a set of sessions.
 
     sessions maps a session name to a SurgintDataset built without a transform.
-    returns MOTA, IDF1, id switches, the counts behind them, and the same per session.
+    returns MOTA, IDF1, class accuracy, id switches, the counts behind them, and the
+    same per session.
     """
     if pipeline.tracker is None:
         raise ValueError(f"evaluate_sessions requires a tracker, got task {pipeline.task!r}")
@@ -55,10 +56,15 @@ def evaluate_sessions(pipeline: Pipeline, sessions: Dict) -> Dict:
         for index in tqdm(range(len(dataset)), desc=name, leave=False):
             sample = dataset[index]
             detections = pipeline.predict(sample["frame"], 0.0)
-            frames.append(
-                (sample["boxes"], sample["track_ids"], detections.boxes, detections.track_ids)
-            )
-        counts[name] = mot_counts(frames)
+            frames.append((
+                sample["boxes"],
+                sample["track_ids"],
+                sample["class_ids"],
+                detections.boxes,
+                detections.track_ids,
+                detections.class_ids,
+            ))
+        counts[name] = mot_counts(frames, iou_threshold)
 
     return {
         **mot_evaluate(list(counts.values())),
