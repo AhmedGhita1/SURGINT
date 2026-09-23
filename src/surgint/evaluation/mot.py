@@ -36,6 +36,9 @@ def mot_counts(frames, iou_threshold: float = 0.5) -> dict:
         fp += len(boxes) - len(matches)
         fn += len(gt_boxes) - len(matches)
 
+    if fp < 0 or fn < 0:
+        raise ValueError(f"matching was not one-to-one: fp {fp}, fn {fn}")
+
     return {
         "frames": len(frames),
         "gt": gt_total,
@@ -86,6 +89,8 @@ def _match(gt_boxes, gt_ids, boxes, track_ids, iou_threshold, last_match):
         if previous is None:
             continue
         for prediction_index, track_id in enumerate(track_ids):
+            if prediction_index in taken_prediction:
+                continue
             if int(track_id) == previous and ious[gt_index, prediction_index] >= iou_threshold:
                 matches.append((gt_index, prediction_index))
                 taken_gt.add(gt_index)

@@ -13,11 +13,13 @@ coverage:
 - switches:  an id change on a correctly located box
 - aggregate: sequences are summed, not averaged
 - empty:     no ground truth and no predictions
+- one to one: a prediction is matched to at most one gt, and counts stay non negative
 """
 
 import numpy as np
+import pytest
 
-from surgint.evaluation.mot import mot_counts, mot_evaluate
+from surgint.evaluation.mot import _match, mot_counts, mot_evaluate
 
 BOX_A = [10.0, 10.0, 50.0, 90.0]
 BOX_B = [200.0, 10.0, 240.0, 90.0]
@@ -120,6 +122,73 @@ def test_unit_empty():
     ghosts = mot_evaluate(mot_counts(sequence([(empty, [], [BOX_A], [7])])))
     assert ghosts["fp"] == 1, f"expected 1, got {ghosts['fp']}"
 
+
+# two gt boxes overlapping one prediction above the threshold. reaching this needs both
+# gt ids to already point at the same track, which happens when they are matched in
+# different frames while the other is absent
+SHARED = [0.0, 0.0, 10.0, 10.0]
+OVERLAPPING = [1.0, 0.0, 11.0, 10.0]
+
+
+def test_unit_one_prediction_matches_one_gt():
+    """a preserved pairing may not hand the same prediction to a second gt"""
+
+    matches = _match(
+        np.array([SHARED, OVERLAPPING]), [1, 2],
+        np.array([SHARED]), [5],
+        0.5, {1: 5, 2: 5},
+    )
+
+    predictions = [prediction_index for _, prediction_index in matches]
+    truths = [gt_index for gt_index, _ in matches]
+    assert len(set(predictions)) == len(predictions), f"a prediction was reused: {matches}"
+    assert len(set(truths)) == len(truths), f"a gt was reused: {matches}"
+    assert len(matches) <= 1, f"one prediction cannot satisfy two gt: {matches}"
+
+
+def test_unit_shared_track_does_not_go_negative():
+    """the sequence that produced a negative false positive count"""
+
+    frames = sequence([
+        ([SHARED], [1], [SHARED], [5]),                  # gt 1 takes track 5
+        ([SHARED], [2], [SHARED], [5]),                  # gt 2 takes track 5, gt 1 absent
+        ([SHARED, OVERLAPPING], [1, 2], [SHARED], [5]),  # both present, one prediction
+    ])
+    result = mot_evaluate(mot_counts(frames))
+
+    assert result["fp"] == 0, f"one prediction, all of it matched, got fp {result['fp']}"
+    assert result["fn"] == 1, f"the second gt is unmatched, got fn {result['fn']}"
+    assert result["MOTA"] <= 1.0, f"MOTA above 1.0: {result['MOTA']}"
+
+
+def test_unit_counts_never_go_negative():
+    """matching stays one to one across random frames, so no count can go below zero"""
+
+    rng = np.random.default_rng(0)
+    for _ in range(200):
+        frames = []
+        for _ in range(6):
+            # boxes drawn tight together, so many pairs clear the threshold at once
+            gt_count, prediction_count = int(rng.integers(0, 4)), int(rng.integers(0, 4))
+            gt_boxes = [[x := float(rng.integers(0, 4)), 0.0, x + 10.0, 10.0] for _ in range(gt_count)]
+            boxes = [[x := float(rng.integers(0, 4)), 0.0, x + 10.0, 10.0] for _ in range(prediction_count)]
+            gt_ids = list(rng.integers(1, 4, size=gt_count))
+            track_ids = list(rng.integers(1, 4, size=prediction_count))
+            frames.append((gt_boxes, gt_ids, boxes, track_ids))
+
+        counts = mot_counts(sequence(frames))
+        assert counts["fp"] >= 0 and counts["fn"] >= 0, f"negative count: {counts}"
+        assert counts["idtp"] <= min(counts["gt"], counts["predictions"]), f"idtp too large: {counts}"
+
+
+def test_unit_negative_counts_are_refused(monkeypatch):
+    """a count that went negative stops the run instead of being reported"""
+
+    # the fixed matcher cannot produce a duplicate, so one is injected
+    monkeypatch.setattr("surgint.evaluation.mot._match", lambda *args: [(0, 0), (1, 0)])
+
+    with pytest.raises(ValueError, match="one-to-one"):
+        mot_counts(sequence([([SHARED, OVERLAPPING], [1, 2], [SHARED], [5])]))
 
 if __name__ == "__main__":
     test_unit_perfect()
