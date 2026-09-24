@@ -33,7 +33,7 @@ def test_resolver_combines_context_and_ontology_into_a_recommendation(resolver):
 
     assert decision.outcome == "recommendation"
     assert decision.lifecycle == "reusable"
-    assert decision.intrinsic_sharp_hazard == "sharp"
+    assert decision.sharp_hazard == "sharp"
     assert decision.roles == ("cutting",)
     assert decision.action == "secure-transport-to-reprocessing"
     assert decision.matched_rule == "reusable-sharp"
@@ -47,12 +47,21 @@ def test_resolver_reports_information_required_by_policy(resolver):
     assert decision.action is None
 
 
+def test_syringe_is_resolved_as_a_single_use_sharp(resolver):
+    decision = resolver.resolve(observation("syringe"), context())
+
+    assert decision.outcome == "recommendation"
+    assert decision.lifecycle == "single-use"
+    assert decision.sharp_hazard == "sharp"
+    assert decision.action == "approved-sharps-stream"
+
+
 def test_resolver_reports_uncovered_known_facts(resolver):
     decision = resolver.resolve(observation("tray"), context())
 
     assert decision.outcome == "missing_policy"
     assert decision.lifecycle == "reusable"
-    assert decision.intrinsic_sharp_hazard == "no-intrinsic-sharp"
+    assert decision.sharp_hazard == "non-sharp"
 
 
 def test_unsupported_item_outranks_low_confidence(resolver):
@@ -68,7 +77,7 @@ def test_low_confidence_does_not_extract_or_act_on_facts(resolver):
     assert decision.outcome == "low_confidence"
     assert decision.concept_iri.endswith("#scalpel")
     assert decision.lifecycle is None
-    assert decision.intrinsic_sharp_hazard is None
+    assert decision.sharp_hazard is None
     assert decision.action is None
 
 
@@ -90,9 +99,9 @@ def test_recommendation_carries_all_artifact_versions(resolver):
     )
 
     assert decision.perception_version == "perception-v1"
-    assert decision.ontology_version.endswith("/2.0.0")
+    assert decision.ontology_version.endswith("/3.0.0")
     assert decision.policy_id == "surgint-demo-handling"
-    assert decision.policy_version == "1.0.0"
+    assert decision.policy_version == "2.0.0"
 
 
 def test_internal_failure_is_logged_and_fails_closed(monkeypatch, caplog):

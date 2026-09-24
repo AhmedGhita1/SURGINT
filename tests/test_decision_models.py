@@ -35,7 +35,6 @@ def test_item_context_preserves_unknown_values_as_none():
 
     assert context.use_state is None
     assert context.contamination_state is None
-    assert context.needle_attached is None
     assert context.lifecycle is None
 
 
@@ -44,6 +43,14 @@ def test_item_context_rejects_unknown_controlled_values():
         ItemContext(
             workflow_stage="post-procedure-clearing",
             use_state="maybe",
+        )
+
+
+def test_item_context_has_no_needle_specific_input():
+    with pytest.raises(TypeError, match="needle_attached"):
+        ItemContext(
+            workflow_stage="post-procedure-clearing",
+            needle_attached=True,
         )
 
 
@@ -58,7 +65,6 @@ def test_session_context_composes_class_specific_facts():
         ItemContextOverride(
             lifecycle="reusable",
             product_id="catalog-7",
-            needle_attached=False,
         )
     )
 
@@ -67,7 +73,6 @@ def test_session_context_composes_class_specific_facts():
     assert context.contamination_state == "not-regulated"
     assert context.lifecycle == "reusable"
     assert context.product_id == "catalog-7"
-    assert context.needle_attached is False
 
 
 def test_session_context_rejects_invalid_override_type():
@@ -99,8 +104,8 @@ def test_valid_recommendation_carries_provenance():
         matched_rule="disposable-sharp",
     )
 
-    assert decision.ontology_version.endswith("/2.0.0")
-    assert decision.policy_version == "1.0.0"
+    assert decision.ontology_version.endswith("/3.0.0")
+    assert decision.policy_version == "2.0.0"
     assert decision.perception_version == "perception-v1"
 
 
@@ -114,16 +119,16 @@ def _decision(**overrides):
         "outcome": "missing_policy",
         "concept_iri": "http://example.test/SURGINT#scalpel",
         "lifecycle": None,
-        "intrinsic_sharp_hazard": "sharp",
+        "sharp_hazard": "sharp",
         "roles": ("cutting",),
         "action": None,
         "matched_rule": None,
         "missing_fields": (),
         "reason": "test decision",
         "perception_version": "perception-v1",
-        "ontology_version": "http://example.test/SURGINT/2.0.0",
+        "ontology_version": "http://example.test/SURGINT/3.0.0",
         "policy_id": "test-policy",
-        "policy_version": "1.0.0",
+        "policy_version": "2.0.0",
     }
     values.update(overrides)
     return Decision(**values)

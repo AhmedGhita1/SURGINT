@@ -151,8 +151,8 @@ class DecisionResolver:
                 if lifecycle is not None
                 else known.lifecycle if known is not None else None
             ),
-            intrinsic_sharp_hazard=(
-                known.intrinsic_sharp_hazard if known is not None else None
+            sharp_hazard=(
+                known.sharp_hazard if known is not None else None
             ),
             roles=known.roles if known is not None else (),
             action=action,
@@ -190,13 +190,8 @@ def _policy_facts(
         "workflow_stage": context.workflow_stage,
         "decision_intent": context.decision_intent,
         "lifecycle": lifecycle,
-        "intrinsic_sharp_hazard": known.intrinsic_sharp_hazard,
+        "sharp_hazard": known.sharp_hazard,
         "use_state": context.use_state,
         "contamination_state": context.contamination_state,
-        "needle_attached": (
-            None
-            if context.needle_attached is None
-            else "yes" if context.needle_attached else "no"
-        ),
         "product_id": context.product_id,
     }

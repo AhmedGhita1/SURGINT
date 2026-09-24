@@ -20,7 +20,7 @@ PERCEPTION_LABELS = frozenset(
 
 CONTROLLED_VALUES = {
     "hasLifecycleDesignation": frozenset({"reusable", "single-use"}),
-    "hasIntrinsicSharpHazard": frozenset({"sharp", "no-intrinsic-sharp"}),
+    "hasSharpHazard": frozenset({"sharp", "non-sharp"}),
     "hasFunctionalRole": frozenset(
         {
             "cutting",
@@ -39,16 +39,16 @@ CONTROLLED_VALUES = {
 }
 
 FUNCTIONAL_PROPERTIES = frozenset(
-    {"hasLifecycleDesignation", "hasIntrinsicSharpHazard"}
+    {"hasLifecycleDesignation", "hasSharpHazard"}
 )
 
 SCHEMA_CLASSES = frozenset(
-    {"TrayItem", "LifecycleDesignation", "IntrinsicSharpHazard", "FunctionalRole"}
+    {"TrayItem", "LifecycleDesignation", "SharpHazard", "FunctionalRole"}
 )
 
 PROPERTY_TYPES = {
     "hasLifecycleDesignation": "LifecycleDesignation",
-    "hasIntrinsicSharpHazard": "IntrinsicSharpHazard",
+    "hasSharpHazard": "SharpHazard",
     "hasFunctionalRole": "FunctionalRole",
 }
 

@@ -1,6 +1,6 @@
 schema_version: 1
 policy_id: surgint-demo-handling
-version: 1.0.0
+version: 2.0.0
 status: demonstration-only
 
 rules:
@@ -8,7 +8,7 @@ rules:
     when:
       workflow_stage: post-procedure-clearing
       lifecycle: reusable
-      intrinsic_sharp_hazard: sharp
+      sharp_hazard: sharp
     action: secure-transport-to-reprocessing
     explanation: Reusable sharp items require secure transport to reprocessing.
 
@@ -16,7 +16,7 @@ rules:
     when:
       workflow_stage: post-procedure-clearing
       lifecycle: single-use
-      intrinsic_sharp_hazard: sharp
+      sharp_hazard: sharp
     action: approved-sharps-stream
     explanation: Single-use sharp items enter the approved sharps stream.
 
@@ -24,7 +24,7 @@ rules:
     when:
       workflow_stage: post-procedure-clearing
       lifecycle: single-use
-      intrinsic_sharp_hazard: no-intrinsic-sharp
+      sharp_hazard: non-sharp
       use_state: unused
       contamination_state: not-regulated
     action: facility-general-waste

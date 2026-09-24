@@ -4,7 +4,7 @@ from owlready2 import World
 
 ONTOLOGY_FILE = "SURGINT.owl"
 ONTOLOGY_IRI = "http://www.semanticweb.org/ahmedghita/ontologies/2026/SURGINT"
-VERSION_IRI = f"{ONTOLOGY_IRI}/2.0.0"
+VERSION_IRI = f"{ONTOLOGY_IRI}/3.0.0"
 VERSION_QUERY = """
 SELECT ?version {
     ?ontology <http://www.w3.org/2002/07/owl#versionIRI> ?version

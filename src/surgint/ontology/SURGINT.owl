@@ -8,8 +8,8 @@
     xmlns:xsd="http://www.w3.org/2001/XMLSchema#">
 
     <owl:Ontology rdf:about="http://www.semanticweb.org/ahmedghita/ontologies/2026/SURGINT">
-        <owl:versionIRI rdf:resource="http://www.semanticweb.org/ahmedghita/ontologies/2026/SURGINT/2.0.0"/>
-        <owl:versionInfo>2.0.0</owl:versionInfo>
+        <owl:versionIRI rdf:resource="http://www.semanticweb.org/ahmedghita/ontologies/2026/SURGINT/3.0.0"/>
+        <owl:versionInfo>3.0.0</owl:versionInfo>
         <rdfs:label xml:lang="en">SURGINT</rdfs:label>
         <rdfs:comment xml:lang="en">Perception-aligned knowledge for surgical tray inventory and handling.</rdfs:comment>
     </owl:Ontology>
@@ -25,8 +25,8 @@
     <owl:Class rdf:about="#LifecycleDesignation">
         <rdfs:label xml:lang="en">lifecycle designation</rdfs:label>
     </owl:Class>
-    <owl:Class rdf:about="#IntrinsicSharpHazard">
-        <rdfs:label xml:lang="en">intrinsic sharp hazard</rdfs:label>
+    <owl:Class rdf:about="#SharpHazard">
+        <rdfs:label xml:lang="en">sharp hazard</rdfs:label>
     </owl:Class>
     <owl:Class rdf:about="#FunctionalRole">
         <rdfs:label xml:lang="en">functional role</rdfs:label>
@@ -35,7 +35,7 @@
     <owl:AllDisjointClasses>
         <owl:members rdf:parseType="Collection">
             <rdf:Description rdf:about="#LifecycleDesignation"/>
-            <rdf:Description rdf:about="#IntrinsicSharpHazard"/>
+            <rdf:Description rdf:about="#SharpHazard"/>
             <rdf:Description rdf:about="#FunctionalRole"/>
         </owl:members>
     </owl:AllDisjointClasses>
@@ -46,11 +46,11 @@
         <rdfs:range rdf:resource="#LifecycleDesignation"/>
         <rdfs:label xml:lang="en">has lifecycle designation</rdfs:label>
     </owl:ObjectProperty>
-    <owl:ObjectProperty rdf:about="#hasIntrinsicSharpHazard">
+    <owl:ObjectProperty rdf:about="#hasSharpHazard">
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
         <rdfs:domain rdf:resource="#TrayItem"/>
-        <rdfs:range rdf:resource="#IntrinsicSharpHazard"/>
-        <rdfs:label xml:lang="en">has intrinsic sharp hazard</rdfs:label>
+        <rdfs:range rdf:resource="#SharpHazard"/>
+        <rdfs:label xml:lang="en">has sharp hazard</rdfs:label>
     </owl:ObjectProperty>
     <owl:ObjectProperty rdf:about="#hasFunctionalRole">
         <rdfs:domain rdf:resource="#TrayItem"/>
@@ -67,13 +67,13 @@
         <rdfs:label xml:lang="en">single-use</rdfs:label>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#sharp">
-        <rdf:type rdf:resource="#IntrinsicSharpHazard"/>
+        <rdf:type rdf:resource="#SharpHazard"/>
         <rdfs:label xml:lang="en">sharp</rdfs:label>
     </owl:NamedIndividual>
-    <owl:NamedIndividual rdf:about="#no-intrinsic-sharp">
-        <rdf:type rdf:resource="#IntrinsicSharpHazard"/>
-        <rdfs:label xml:lang="en">no intrinsic sharp</rdfs:label>
-        <rdfs:comment xml:lang="en">No intrinsic cutting or puncturing edge is asserted; this does not mean risk-free or uncontaminated.</rdfs:comment>
+    <owl:NamedIndividual rdf:about="#non-sharp">
+        <rdf:type rdf:resource="#SharpHazard"/>
+        <rdfs:label xml:lang="en">non-sharp</rdfs:label>
+        <rdfs:comment xml:lang="en">No cutting or puncturing hazard is asserted; this does not mean risk-free or uncontaminated.</rdfs:comment>
     </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="#cutting">
         <rdf:type rdf:resource="#FunctionalRole"/>
@@ -125,7 +125,7 @@
             <rdf:Description rdf:about="#reusable"/>
             <rdf:Description rdf:about="#single-use"/>
             <rdf:Description rdf:about="#sharp"/>
-            <rdf:Description rdf:about="#no-intrinsic-sharp"/>
+            <rdf:Description rdf:about="#non-sharp"/>
             <rdf:Description rdf:about="#cutting"/>
             <rdf:Description rdf:about="#grasping"/>
             <rdf:Description rdf:about="#clamping"/>
@@ -144,7 +144,7 @@
         <rdfs:subClassOf rdf:resource="#TrayItem"/>
         <rdfs:label xml:lang="en">scalpel</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">scalpel</perceptionLabel>
-        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasIntrinsicSharpHazard"/><owl:hasValue rdf:resource="#sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#cutting"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#forceps">
@@ -157,26 +157,32 @@
         <rdfs:subClassOf rdf:resource="#TrayItem"/>
         <rdfs:label xml:lang="en">hemostat</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">hemostat</perceptionLabel>
-        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasIntrinsicSharpHazard"/><owl:hasValue rdf:resource="#no-intrinsic-sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#non-sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#clamping"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#scissors">
         <rdfs:subClassOf rdf:resource="#TrayItem"/>
         <rdfs:label xml:lang="en">scissors</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">scissors</perceptionLabel>
-        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasIntrinsicSharpHazard"/><owl:hasValue rdf:resource="#sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#cutting"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#retractor">
         <rdfs:subClassOf rdf:resource="#TrayItem"/>
         <rdfs:label xml:lang="en">retractor</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">retractor</perceptionLabel>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#tissue-retraction"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#dissector">
         <rdfs:subClassOf rdf:resource="#TrayItem"/>
         <rdfs:label xml:lang="en">dissector</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">dissector</perceptionLabel>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#tissue-dissection"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#syringe">
@@ -184,6 +190,7 @@
         <rdfs:label xml:lang="en">syringe</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">syringe</perceptionLabel>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#single-use"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#fluid-delivery"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#tray">
@@ -191,7 +198,7 @@
         <rdfs:label xml:lang="en">tray</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">tray</perceptionLabel>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
-        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasIntrinsicSharpHazard"/><owl:hasValue rdf:resource="#no-intrinsic-sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#non-sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#instrument-support"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#basin">
@@ -199,7 +206,7 @@
         <rdfs:label xml:lang="en">basin</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">basin</perceptionLabel>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
-        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasIntrinsicSharpHazard"/><owl:hasValue rdf:resource="#no-intrinsic-sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#non-sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#fluid-containment"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#bowl">
@@ -207,7 +214,7 @@
         <rdfs:label xml:lang="en">bowl</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">bowl</perceptionLabel>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#reusable"/></owl:Restriction></rdfs:subClassOf>
-        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasIntrinsicSharpHazard"/><owl:hasValue rdf:resource="#no-intrinsic-sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#non-sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#fluid-containment"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#gauze">
@@ -215,7 +222,7 @@
         <rdfs:label xml:lang="en">gauze</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">gauze</perceptionLabel>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#single-use"/></owl:Restriction></rdfs:subClassOf>
-        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasIntrinsicSharpHazard"/><owl:hasValue rdf:resource="#no-intrinsic-sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#non-sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#absorption"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#bandage">
@@ -223,14 +230,15 @@
         <rdfs:label xml:lang="en">bandage</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">bandage</perceptionLabel>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#single-use"/></owl:Restriction></rdfs:subClassOf>
-        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasIntrinsicSharpHazard"/><owl:hasValue rdf:resource="#no-intrinsic-sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#non-sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#wound-dressing"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
     <owl:Class rdf:about="#tube">
         <rdfs:subClassOf rdf:resource="#TrayItem"/>
         <rdfs:label xml:lang="en">tube</rdfs:label>
         <perceptionLabel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">tube</perceptionLabel>
-        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasIntrinsicSharpHazard"/><owl:hasValue rdf:resource="#no-intrinsic-sharp"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasLifecycleDesignation"/><owl:hasValue rdf:resource="#single-use"/></owl:Restriction></rdfs:subClassOf>
+        <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasSharpHazard"/><owl:hasValue rdf:resource="#non-sharp"/></owl:Restriction></rdfs:subClassOf>
         <rdfs:subClassOf><owl:Restriction><owl:onProperty rdf:resource="#hasFunctionalRole"/><owl:hasValue rdf:resource="#fluid-conveyance"/></owl:Restriction></rdfs:subClassOf>
     </owl:Class>
 

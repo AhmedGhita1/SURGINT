@@ -48,7 +48,6 @@ class ItemContext:
     decision_intent: str = "next-handling-action"
     use_state: Optional[str] = None
     contamination_state: Optional[str] = None
-    needle_attached: Optional[bool] = None
     product_id: Optional[str] = None
     lifecycle: Optional[str] = None
 
@@ -61,10 +60,6 @@ class ItemContext:
             CONTAMINATION_STATES,
             "contamination_state",
         )
-        if self.needle_attached is not None and not isinstance(
-            self.needle_attached, bool
-        ):
-            raise ValueError("needle_attached must be a bool or None")
         if self.product_id is not None:
             _text(self.product_id, "product_id")
         _optional_choice(self.lifecycle, LIFECYCLES, "lifecycle")
@@ -74,15 +69,10 @@ class ItemContext:
 class ItemContextOverride:
     """Facts that may differ between finalized inventory classes."""
 
-    needle_attached: Optional[bool] = None
     product_id: Optional[str] = None
     lifecycle: Optional[str] = None
 
     def __post_init__(self) -> None:
-        if self.needle_attached is not None and not isinstance(
-            self.needle_attached, bool
-        ):
-            raise ValueError("needle_attached must be a bool or None")
         if self.product_id is not None:
             _text(self.product_id, "product_id")
         _optional_choice(self.lifecycle, LIFECYCLES, "lifecycle")
@@ -123,7 +113,6 @@ class SessionContext:
             decision_intent=self.decision_intent,
             use_state=self.use_state,
             contamination_state=self.contamination_state,
-            needle_attached=override.needle_attached,
             product_id=override.product_id,
             lifecycle=override.lifecycle,
         )
@@ -139,7 +128,7 @@ class Decision:
     outcome: str
     concept_iri: Optional[str]
     lifecycle: Optional[str]
-    intrinsic_sharp_hazard: Optional[str]
+    sharp_hazard: Optional[str]
     roles: tuple[str, ...]
     action: Optional[str]
     matched_rule: Optional[str]
@@ -163,7 +152,7 @@ class Decision:
         _text(self.decision_intent, "decision_intent")
         _optional_text(self.concept_iri, "concept_iri")
         _optional_choice(self.lifecycle, LIFECYCLES, "lifecycle")
-        _optional_text(self.intrinsic_sharp_hazard, "intrinsic_sharp_hazard")
+        _optional_text(self.sharp_hazard, "sharp_hazard")
         _text_tuple(self.roles, "roles")
         _optional_text(self.action, "action")
         _optional_text(self.matched_rule, "matched_rule")

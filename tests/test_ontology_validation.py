@@ -28,20 +28,18 @@ def test_validation_rejects_a_duplicate_perception_label():
 def test_validation_rejects_an_invalid_controlled_value():
     _, ontology = load()
     ontology.forceps.is_a.append(
-        ontology.hasIntrinsicSharpHazard.value(ontology.cutting)
+        ontology.hasSharpHazard.value(ontology.cutting)
     )
 
-    with pytest.raises(ValueError, match="invalid hasIntrinsicSharpHazard"):
+    with pytest.raises(ValueError, match="invalid hasSharpHazard"):
         validate(ontology)
 
 
 def test_validation_rejects_multiple_functional_values():
     _, ontology = load()
     ontology.gauze.is_a.append(
-        ontology.hasIntrinsicSharpHazard.value(ontology.sharp)
+        ontology.hasSharpHazard.value(ontology.sharp)
     )
 
-    with pytest.raises(
-        ValueError, match="multiple values for hasIntrinsicSharpHazard"
-    ):
+    with pytest.raises(ValueError, match="multiple values for hasSharpHazard"):
         validate(ontology)

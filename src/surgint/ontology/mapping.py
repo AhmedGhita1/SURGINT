@@ -8,7 +8,7 @@ from owlready2 import Restriction, VALUE
 class ConceptFacts:
     concept_iri: str
     lifecycle: Optional[str]
-    intrinsic_sharp_hazard: Optional[str]
+    sharp_hazard: Optional[str]
     roles: tuple[str, ...]
 
 
@@ -39,10 +39,10 @@ def facts(ontology, concept) -> ConceptFacts:
         concept,
         "hasLifecycleDesignation",
     )
-    intrinsic_sharp_hazard = _single(
-        _asserted_values(concept, ontology.hasIntrinsicSharpHazard),
+    sharp_hazard = _single(
+        _asserted_values(concept, ontology.hasSharpHazard),
         concept,
-        "hasIntrinsicSharpHazard",
+        "hasSharpHazard",
     )
     roles = tuple(
         sorted(
@@ -54,7 +54,7 @@ def facts(ontology, concept) -> ConceptFacts:
     return ConceptFacts(
         concept_iri=concept.iri,
         lifecycle=lifecycle,
-        intrinsic_sharp_hazard=intrinsic_sharp_hazard,
+        sharp_hazard=sharp_hazard,
         roles=roles,
     )
 

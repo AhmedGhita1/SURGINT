@@ -40,7 +40,7 @@ def test_packaged_ontology_contains_the_schema_classes():
     assert {concept.name for concept in ontology.classes()} == {
         "TrayItem",
         "LifecycleDesignation",
-        "IntrinsicSharpHazard",
+        "SharpHazard",
         "FunctionalRole",
         "scalpel",
         "forceps",

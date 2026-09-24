@@ -8,7 +8,7 @@ def test_packaged_policy_loads_with_pinned_identity():
 
     assert policy.schema_version == 1
     assert policy.id == "surgint-demo-handling"
-    assert policy.version == "1.0.0"
+    assert policy.version == "2.0.0"
     assert policy.status == "demonstration-only"
     assert [rule.id for rule in policy.rules] == [
         "reusable-sharp",

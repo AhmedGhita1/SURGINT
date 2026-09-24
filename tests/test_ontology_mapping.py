@@ -52,8 +52,38 @@ def test_facts_extract_asserted_category_knowledge():
 
     assert known.concept_iri.endswith("#gauze")
     assert known.lifecycle == "single-use"
-    assert known.intrinsic_sharp_hazard == "no-intrinsic-sharp"
+    assert known.sharp_hazard == "non-sharp"
     assert known.roles == ("absorption",)
+
+
+@pytest.mark.parametrize(
+    ("label", "lifecycle", "sharp_hazard", "role"),
+    [
+        ("hemostat", "reusable", "non-sharp", "clamping"),
+        ("scissors", "reusable", "sharp", "cutting"),
+        ("retractor", "reusable", "sharp", "tissue-retraction"),
+        ("dissector", "reusable", "sharp", "tissue-dissection"),
+        ("syringe", "single-use", "sharp", "fluid-delivery"),
+        ("tray", "reusable", "non-sharp", "instrument-support"),
+        ("basin", "reusable", "non-sharp", "fluid-containment"),
+        ("bowl", "reusable", "non-sharp", "fluid-containment"),
+        ("gauze", "single-use", "non-sharp", "absorption"),
+        ("tube", "single-use", "non-sharp", "fluid-conveyance"),
+    ],
+)
+def test_facts_match_the_current_deployment_profile(
+    label,
+    lifecycle,
+    sharp_hazard,
+    role,
+):
+    _, ontology = load()
+
+    known = facts(ontology, concepts(ontology)[label])
+
+    assert known.lifecycle == lifecycle
+    assert known.sharp_hazard == sharp_hazard
+    assert known.roles == (role,)
 
 
 def test_facts_preserve_unasserted_values_as_none():
@@ -61,18 +91,16 @@ def test_facts_preserve_unasserted_values_as_none():
     mapping = concepts(ontology)
 
     assert facts(ontology, mapping["scalpel"]).lifecycle is None
-    assert facts(ontology, mapping["syringe"]).intrinsic_sharp_hazard is None
+    assert facts(ontology, mapping["forceps"]).sharp_hazard is None
 
 
 def test_facts_reject_multiple_functional_values():
     _, ontology = load()
     ontology.gauze.is_a.append(
-        ontology.hasIntrinsicSharpHazard.value(ontology.sharp)
+        ontology.hasSharpHazard.value(ontology.sharp)
     )
 
-    with pytest.raises(
-        ValueError, match="multiple values for hasIntrinsicSharpHazard"
-    ):
+    with pytest.raises(ValueError, match="multiple values for hasSharpHazard"):
         facts(ontology, ontology.gauze)
 
 

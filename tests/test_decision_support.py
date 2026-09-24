@@ -43,8 +43,8 @@ def test_tracked_detection_resolves_through_inventory_and_decision_support():
     assert decision.outcome == "recommendation"
     assert decision.action == "secure-transport-to-reprocessing"
     assert decision.perception_version == "detector-v1+tracker-v1"
-    assert decision.ontology_version.endswith("/2.0.0")
-    assert decision.policy_version == "1.0.0"
+    assert decision.ontology_version.endswith("/3.0.0")
+    assert decision.policy_version == "2.0.0"
 
 
 def test_inventory_items_can_use_track_specific_context():
