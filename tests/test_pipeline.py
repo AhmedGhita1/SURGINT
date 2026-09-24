@@ -17,6 +17,7 @@ coverage:
 import tempfile
 from pathlib import Path
 
+import pytest
 import numpy as np
 import torch
 
@@ -25,6 +26,9 @@ from surgint.model.detector import Detector
 from surgint.model.transform import Transform
 from surgint.runtime.bytetrack import CONFIRM_HITS
 from surgint.runtime.pipeline import Pipeline
+
+# these load a real checkpoint from the hub
+pytestmark = pytest.mark.integration
 
 CHECKPOINT = "PekingU/rtdetr_r18vd_coco_o365"
 INPUT_SIZE = [320, 192]

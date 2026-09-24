@@ -18,6 +18,7 @@ import tempfile
 from functools import lru_cache
 from pathlib import Path
 
+import pytest
 import numpy as np
 import torch
 from PIL import Image
@@ -26,8 +27,11 @@ from torch.utils.data import DataLoader
 from surgint.config import Config
 from surgint.dataset.coco import SurgintDataset, collate
 from surgint.model.transform import Transform
-from surgint.engine.trainer import EpochResult, Trainer
+from surgint.engine.trainer import Trainer
 from surgint.model.detector import Detector
+
+# these load a real checkpoint from the hub
+pytestmark = pytest.mark.integration
 
 CHECKPOINT = "PekingU/rtdetr_r18vd_coco_o365"
 INPUT_SIZE = [320, 192]

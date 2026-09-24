@@ -23,10 +23,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==8.3.3"]
+dev = ["pytest==8.3.3", "ruff==0.16.8"]
 
 [project.scripts]
 train = "surgint.cli.train:main"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# real errors only. style and import order are left alone on purpose: enforcing them
+# would rewrite about 1500 lines for no behavioural gain
+select = ["E9", "F"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

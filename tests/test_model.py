@@ -26,6 +26,9 @@ import torch
 from surgint.model import Detections
 from surgint.model.detector import Detector
 
+# these load a real checkpoint from the hub
+pytestmark = pytest.mark.integration
+
 CHECKPOINT = "PekingU/rtdetr_r18vd_coco_o365"
 ID2LABEL = {0: "scalpel", 1: "scissors", 2: "forceps"}
 HEIGHT, WIDTH = 256, 320                       # small canvas; only shapes are under test

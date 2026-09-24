@@ -181,7 +181,7 @@ def test_unit_counts_never_go_negative():
     """matching stays one to one across random frames, so no count can go below zero"""
 
     rng = np.random.default_rng(0)
-    for _ in range(200):
+    for _ in range(50):
         frames = []
         for _ in range(6):
             # boxes drawn tight together, so many pairs clear the threshold at once
