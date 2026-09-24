@@ -74,7 +74,7 @@ def annotation(index: int = 1, image_id: int = 0, category_id: int = 1, **extra)
     }
 
 
-def test_unit_mappings():
+def test_mappings():
     """category ids from the file become contiguous class ids for the head"""
 
     # one entry per class id, holding the category id and the category name
@@ -104,7 +104,7 @@ def test_unit_mappings():
     print("mappings passed")
 
 
-def test_unit_sample():
+def test_sample():
 
     root = build_root([annotation()])
     sample = SurgintDataset(root, "val", "detection-only")[0]
@@ -139,7 +139,7 @@ def test_unit_sample():
     print("sample contract passed")
 
 
-def test_unit_task():
+def test_task():
     """track_ids appear only under detection-tracking"""
 
     # detection-only omits track ids
@@ -167,7 +167,7 @@ def test_unit_task():
         pass
 
 
-def test_unit_collate():
+def test_collate():
 
     # two images, one box on the first and two on the second
     annotations = [
@@ -201,10 +201,3 @@ def test_unit_collate():
     assert single["pixel_values"].shape[0] == 1, "batch dimension collapsed"
     assert len(single["labels"]) == 1, "labels lost the batch dimension"
 
-
-if __name__ == "__main__":
-    test_unit_mappings()
-    test_unit_sample()
-    test_unit_task()
-    test_unit_collate()
-    print("\nall passed")

@@ -88,7 +88,7 @@ def build_trainer(**overrides) -> Trainer:
     )
 
 
-def test_unit_setup():
+def test_setup():
     """what the constructor builds before any step runs"""
 
     trainer = build_trainer(epochs=3)
@@ -105,7 +105,7 @@ def test_unit_setup():
     assert trainer.best_score == float("-inf"), "nothing has been scored yet"
 
 
-def test_unit_train_epoch():
+def test_train_epoch():
     """one pass over the training split"""
 
     trainer = build_trainer()
@@ -125,7 +125,7 @@ def test_unit_train_epoch():
     assert frozen and all(not m.training for m in frozen), "batchnorm was not frozen"
 
 
-def test_unit_validate():
+def test_validate():
     """coco mAP over the val split"""
 
     trainer = build_trainer()
@@ -143,7 +143,7 @@ def test_unit_validate():
     assert not trainer.detector.training, "validate must not leave the model in train mode"
 
 
-def test_unit_train_loop():
+def test_train_loop():
     """val_interval, best selection, and the epoch record"""
 
     trainer = build_trainer(epochs=3, val_interval=2)
@@ -175,7 +175,7 @@ def test_unit_train_loop():
     assert set(results[0].as_dict()) == {"epoch", "lr", "train_loss"}
 
 
-def test_unit_state():
+def test_state():
     """resuming a run"""
 
     trainer = build_trainer(epochs=2)
@@ -204,11 +204,3 @@ def test_unit_state():
     # a resumed run continues rather than restarting
     assert list(resumed.train()) == [], "epochs already run must not repeat"
 
-
-if __name__ == "__main__":
-    test_unit_setup()
-    test_unit_train_epoch()
-    test_unit_validate()
-    test_unit_train_loop()
-    test_unit_state()
-    print("\nall passed")

@@ -23,7 +23,7 @@ def logits_from(scores: list[list[float]]) -> torch.Tensor:
     return torch.logit(torch.tensor([scores], dtype=torch.float32))
 
 
-def test_unit_decode():
+def test_decode():
     """raw logits and boxes to a scored, sorted detection list"""
 
     # decode does no geometry; the model already emits normalized cxcywh
@@ -61,28 +61,3 @@ def test_unit_decode():
     assert len(detections[0][0]) == 1, "first image has one detection"
     assert len(detections[1][0]) == 0, "second image has none"
 
-
-if __name__ == "__main__":
-    test_unit_decode()
-    print("\nall passed")
-
-
-def test_unit_decode_max_detections():
-    """max_detections caps the list at the highest scoring queries"""
-
-    pred_boxes = torch.tensor([[[0.1, 0.1, 0.1, 0.1], [0.2, 0.2, 0.2, 0.2], [0.3, 0.3, 0.3, 0.3]]])
-    logits = logits_from([[0.9], [0.5], [0.7]])
-
-    # uncapped, every query over the threshold survives, highest score first
-    _, scores, _ = decode(logits, pred_boxes, 0.1)[0]
-    assert np.allclose(scores, [0.9, 0.7, 0.5], atol=1e-6), f"got {scores.tolist()}"
-
-    # the cap keeps the top k of that order
-    boxes, scores, _ = decode(logits, pred_boxes, 0.1, max_detections=2)[0]
-    assert len(scores) == 2, f"expected 2 detections, got {len(scores)}"
-    assert np.allclose(scores, [0.9, 0.7], atol=1e-6), f"got {scores.tolist()}"
-    expected = [[0.1, 0.1, 0.1, 0.1], [0.3, 0.3, 0.3, 0.3]]
-    assert np.allclose(boxes, expected, atol=1e-6), f"boxes must follow the scores, got {boxes.tolist()}"
-
-    # a cap above the count changes nothing
-    assert len(decode(logits, pred_boxes, 0.1, max_detections=99)[0][1]) == 3

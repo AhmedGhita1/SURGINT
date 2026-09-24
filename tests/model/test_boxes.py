@@ -16,7 +16,7 @@ from surgint.model.boxes import iou_matrix, nms
 BOX = np.array([[10.0, 10.0, 20.0, 20.0]])
 
 
-def test_unit_iou():
+def test_iou():
     """pairwise overlap between two sets of boxes"""
 
     # a box against itself scores 1
@@ -42,7 +42,7 @@ def test_unit_iou():
 
 
 
-def test_unit_nms():
+def test_nms():
     """greedy suppression of boxes covering the same object"""
 
     # two boxes on one object, one elsewhere
@@ -64,7 +64,3 @@ def test_unit_nms():
     assert nms(boxes[:1], scores[:1], 0.5).tolist() == [0], "a single box survives"
     assert nms(np.empty((0, 4)), np.empty(0), 0.5).tolist() == [], "an empty frame keeps nothing"
 
-
-if __name__ == "__main__":
-    test_unit_iou()
-    print("\nall passed")

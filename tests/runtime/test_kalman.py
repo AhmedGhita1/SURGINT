@@ -24,7 +24,7 @@ MEASUREMENT = np.array([100.0, 100.0, 0.5, 40.0])   # cx, cy, aspect, height
 BOX = np.array([90.0, 80.0, 110.0, 120.0])          # the same box as xyxy
 
 
-def test_unit_conversion():
+def test_conversion():
     """xyxy to [cx, cy, aspect, height] and back"""
 
     # a 20x40 box centred at (100, 100). aspect is width / height.
@@ -40,7 +40,7 @@ def test_unit_conversion():
     assert np.allclose(to_measurement(to_box(drifted)), drifted), "the inverse must hold both ways"
 
 
-def test_unit_initiate():
+def test_initiate():
     """mean and covariance for a new track"""
 
     mean, covariance = KalmanFilter().initiate(MEASUREMENT)
@@ -60,7 +60,7 @@ def test_unit_initiate():
     assert np.all(np.diag(covariance) > np.diag(running)), "initiate must be wider than a running step"
 
 
-def test_unit_predict():
+def test_predict():
     """one frame of constant velocity"""
 
     kalman = KalmanFilter()
@@ -77,7 +77,7 @@ def test_unit_predict():
     assert np.trace(predicted_covariance) > np.trace(covariance), "process noise must widen the prior"
 
 
-def test_unit_project():
+def test_project():
     """state space to measurement space"""
 
     kalman = KalmanFilter()
@@ -94,7 +94,7 @@ def test_unit_project():
     assert np.all(np.diag(projected_covariance) > position_block), "observation noise must be added"
 
 
-def test_unit_update():
+def test_update():
     """the correction step"""
 
     kalman = KalmanFilter()
@@ -115,7 +115,7 @@ def test_unit_update():
     assert np.allclose(unchanged, mean), "the estimate must be unchanged"
 
 
-def test_unit_tracking():
+def test_tracking():
     """velocity is recovered from positions"""
 
     kalman = KalmanFilter()
@@ -135,12 +135,3 @@ def test_unit_tracking():
     predicted, _ = kalman.predict(mean, covariance)
     assert np.isclose(predicted[0], MEASUREMENT[0] + velocity * 20, atol=1.0), f"got {predicted[0]:.2f}"
 
-
-if __name__ == "__main__":
-    test_unit_conversion()
-    test_unit_initiate()
-    test_unit_predict()
-    test_unit_project()
-    test_unit_update()
-    test_unit_tracking()
-    print("\nall passed")

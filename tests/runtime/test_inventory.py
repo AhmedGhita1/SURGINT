@@ -32,7 +32,7 @@ def frame(class_ids, track_ids, scores=None):
     )
 
 
-def test_unit_accumulate():
+def test_accumulate():
     """an instrument the camera has moved past is still on the tray"""
 
     inventory = Inventory()
@@ -53,7 +53,7 @@ def test_unit_accumulate():
     assert (second.first_seen, second.last_seen) == (3, 6), f"got {second.first_seen}, {second.last_seen}"
 
 
-def test_unit_counts():
+def test_counts():
     """the upper bound against the lower bound"""
 
     inventory = Inventory()
@@ -73,7 +73,7 @@ def test_unit_counts():
     assert inventory.frame == 7, f"an empty frame still counts, got {inventory.frame}"
 
 
-def test_unit_finalize_consolidates_track_fragments():
+def test_finalize_consolidates_track_fragments():
     """maximum simultaneous observations become the finalized count"""
 
     inventory = Inventory()
@@ -99,7 +99,7 @@ def test_unit_finalize_consolidates_track_fragments():
     assert np.isclose(item.score, 0.95)
 
 
-def test_unit_finalize_is_immutable_and_detached():
+def test_finalize_is_immutable_and_detached():
     """later tracking cannot mutate an already finalized result"""
 
     inventory = Inventory()
@@ -119,7 +119,7 @@ def test_unit_finalize_is_immutable_and_detached():
         pass
 
 
-def test_unit_finalize_empty_session():
+def test_finalize_empty_session():
     """an empty session produces an empty immutable result"""
 
     finalized = Inventory().finalize()
@@ -129,7 +129,7 @@ def test_unit_finalize_empty_session():
     assert finalized.counts() == {}
 
 
-def test_unit_class():
+def test_class():
     """the track already voted, so the inventory takes its latest answer"""
 
     inventory = Inventory()
@@ -145,7 +145,7 @@ def test_unit_class():
     assert np.isclose(inventory.items[1].score, 0.9), f"got {inventory.items[1].score}"
 
 
-def test_unit_reset():
+def test_reset():
     """sessions are independent"""
 
     inventory = Inventory()
@@ -162,7 +162,7 @@ def test_unit_reset():
     assert inventory.items[1].first_seen == 0, f"got {inventory.items[1].first_seen}"
 
 
-def test_unit_task():
+def test_task():
     """an inventory cannot be built from untracked detections"""
 
     untracked = Detections(
@@ -177,14 +177,3 @@ def test_unit_task():
     except ValueError as error:
         assert "detection-tracking" in str(error), f"got {error}"
 
-
-if __name__ == "__main__":
-    test_unit_accumulate()
-    test_unit_counts()
-    test_unit_finalize_consolidates_track_fragments()
-    test_unit_finalize_is_immutable_and_detached()
-    test_unit_finalize_empty_session()
-    test_unit_class()
-    test_unit_reset()
-    test_unit_task()
-    print("\nall passed")

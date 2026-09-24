@@ -35,7 +35,7 @@ def blank(height: int = 720, width: int = 1280) -> np.ndarray:
     return np.zeros((height, width, 3), dtype=np.uint8)
 
 
-def test_unit_letterbox():
+def test_letterbox():
     """aspect-preserving resize onto a fixed canvas"""
 
     # canvas takes the requested size whatever the frame was
@@ -78,7 +78,7 @@ def test_unit_letterbox():
     assert tuple(canvas[-1, -1]) == (0, 0, 0), "pad color was ignored"
 
 
-def test_unit_box_geometry():
+def test_box_geometry():
     """forward and inverse box conversions"""
 
     boxes = np.array([[100.0, 200.0, 300.0, 400.0]])
@@ -109,7 +109,7 @@ def test_unit_box_geometry():
 
 
 
-def test_unit_pixel_values():
+def test_pixel_values():
     """uint8 HWC canvases to the float CHW batch"""
 
     canvases = [np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8) for _ in range(2)]
@@ -133,7 +133,7 @@ def test_unit_pixel_values():
     print("pixel values passed")
 
 
-def test_unit_transform():
+def test_transform():
 
     transform = Transform(INPUT_SIZE)
 
@@ -183,7 +183,7 @@ def test_unit_transform():
     assert pixel_values[:, -1, -1].max().item() == 0.0, "pad color was ignored"
 
 
-def test_unit_postprocess():
+def test_postprocess():
     """canvas boxes back to frame pixels"""
 
     transform = Transform(INPUT_SIZE)
@@ -218,11 +218,3 @@ def test_unit_postprocess():
     # one canvas pixel is 1/0.64 frame pixels, so the round trip lands within that
     assert np.allclose(recovered, boxes, rtol=RTOL, atol=1e-2), f"round trip drifted: {recovered}"
 
-
-if __name__ == "__main__":
-    test_unit_letterbox()
-    test_unit_box_geometry()
-    test_unit_pixel_values()
-    test_unit_transform()
-    test_unit_postprocess()
-    print("\nall passed")

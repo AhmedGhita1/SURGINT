@@ -6,15 +6,7 @@ from surgint.model import Detections
 from surgint.runtime.decision_support import InventoryDecisionSupport
 from surgint.runtime.session import DecisionSupportSession
 
-
-def tracked_frame(class_ids, track_ids, scores):
-    count = len(track_ids)
-    return Detections(
-        boxes=np.zeros((count, 4), dtype=np.float32),
-        scores=np.asarray(scores, dtype=np.float32),
-        class_ids=np.asarray(class_ids, dtype=np.int64),
-        track_ids=np.asarray(track_ids, dtype=np.int64),
-    )
+from .factories import tracked_frame
 
 
 def session():

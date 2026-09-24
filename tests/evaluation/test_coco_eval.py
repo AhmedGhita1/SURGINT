@@ -39,7 +39,7 @@ def predict(boxes, class_ids, mappings=None):
                             mappings if mappings is not None else MAPPINGS)
 
 
-def test_unit_coco_predictions():
+def test_coco_predictions():
     """detections to coco records"""
 
     records = predict([BOXES[0]], [0], {0: (5, "scalpel")})
@@ -57,7 +57,7 @@ def test_unit_coco_predictions():
     assert predict([], []) == [], "an empty frame must produce no records"
 
 
-def test_unit_coco_evaluate():
+def test_coco_evaluate():
     """predictions scored against the annotations json"""
 
     annotations = build_annotations()
@@ -80,8 +80,3 @@ def test_unit_coco_evaluate():
     assert metrics["mAP50_95"] == 0.0, f"got {metrics['mAP50_95']}"
     assert metrics["per_class"] == {"scalpel": 0.0, "scissors": 0.0}
 
-
-if __name__ == "__main__":
-    test_unit_coco_predictions()
-    test_unit_coco_evaluate()
-    print("\nall passed")

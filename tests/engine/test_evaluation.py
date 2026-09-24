@@ -83,7 +83,7 @@ def truth_as_prediction(transform: Transform) -> np.ndarray:
     return transform(frame, xyxy, np.array([0], dtype=np.int64))["boxes"]
 
 
-def test_unit_evaluate():
+def test_evaluate():
     """the score of a controlled prediction"""
 
     transform = Transform(INPUT_SIZE)
@@ -113,7 +113,7 @@ def test_unit_evaluate():
     assert metrics["mAP50_95"] == 0.0, f"got {metrics['mAP50_95']}"
 
 
-def test_unit_threshold():
+def test_threshold():
     """every query reaches the metric"""
 
     transform = Transform(INPUT_SIZE)
@@ -131,8 +131,3 @@ def test_unit_threshold():
     evaluate(detector, loader, transform)
     assert detector.calls == len(loader), f"got {detector.calls} calls for {len(loader)} batches"
 
-
-if __name__ == "__main__":
-    test_unit_evaluate()
-    test_unit_threshold()
-    print("\nall passed")

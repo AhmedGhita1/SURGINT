@@ -27,9 +27,6 @@ from surgint.model.transform import Transform
 from surgint.runtime.bytetrack import CONFIRM_HITS
 from surgint.runtime.pipeline import Pipeline
 
-# these load a real checkpoint from the hub
-pytestmark = pytest.mark.integration
-
 CHECKPOINT = "PekingU/rtdetr_r18vd_coco_o365"
 INPUT_SIZE = [320, 192]
 FRAME_HEIGHT, FRAME_WIDTH = 180, 320
@@ -57,7 +54,7 @@ def blank() -> np.ndarray:
     return np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), dtype=np.uint8)
 
 
-def test_unit_task():
+def test_task():
     """the key the pipeline is built with"""
 
     transform = Transform(INPUT_SIZE)
@@ -73,7 +70,7 @@ def test_unit_task():
         pass
 
 
-def test_unit_predict():
+def test_predict():
     """a frame in, Detections out"""
 
     transform = Transform(INPUT_SIZE)
@@ -104,7 +101,7 @@ def test_unit_predict():
     assert empty.scores.shape == (0,) and empty.class_ids.shape == (0,)
 
 
-def test_unit_tracking():
+def test_tracking():
     """track_ids across frames, and reset between sequences"""
 
     transform = Transform(INPUT_SIZE)
@@ -137,7 +134,8 @@ def test_unit_tracking():
     assert result.track_ids.tolist() == [1], f"expected id 1 after reset, got {result.track_ids.tolist()}"
 
 
-def test_unit_from_checkpoint():
+@pytest.mark.integration
+def test_from_checkpoint():
     """the geometry comes from meta.yaml, not from a config"""
 
     detector = Detector.from_pretrained(CHECKPOINT, {0: "scalpel", 1: "scissors"})
@@ -173,10 +171,3 @@ def test_unit_from_checkpoint():
         except FileNotFoundError:
             pass
 
-
-if __name__ == "__main__":
-    test_unit_task()
-    test_unit_predict()
-    test_unit_tracking()
-    test_unit_from_checkpoint()
-    print("\nall passed")

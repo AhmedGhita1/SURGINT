@@ -37,7 +37,7 @@ def test_empty_inputs_match_nothing():
     assert count_matches(BOX, empty) == 0
 
 
-def test_unit_recall():
+def test_recall():
     for test in [
         test_ground_truth_as_predictions_matches_everything,
         test_two_predictions_cannot_claim_one_box,
@@ -47,7 +47,3 @@ def test_unit_recall():
         print(f"\n{test.__name__}")
         test()
 
-
-if __name__ == "__main__":
-    test_unit_recall()
-    print("\nall passed")

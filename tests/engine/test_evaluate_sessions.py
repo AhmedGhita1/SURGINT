@@ -65,7 +65,7 @@ def samples(count, marker, class_id=0):
     ]
 
 
-def test_unit_reset():
+def test_reset():
     """the tracker is reset on every session boundary"""
 
     pipeline = StubPipeline([([BOX], [1])] * 6)
@@ -81,7 +81,7 @@ def test_unit_reset():
     assert result["MOTA"] == 1.0, f"expected 1.0, got {result['MOTA']}"
 
 
-def test_unit_counts():
+def test_counts():
     """the aggregate and the per session entries describe the same frames"""
 
     # session_000 is clean, session_001 misses its second frame
@@ -99,7 +99,7 @@ def test_unit_counts():
     assert np.isclose(result["MOTA"], 1 - 1 / 6), f"expected {1 - 1 / 6}, got {result['MOTA']}"
 
 
-def test_unit_ordering():
+def test_ordering():
     """the tracker is stateful, so the frames have to arrive in index order"""
 
     pipeline = StubPipeline([([BOX], [1])] * 5)
@@ -108,7 +108,7 @@ def test_unit_ordering():
     assert pipeline.seen == [0, 1, 2, 3, 4], f"frames arrived out of order: {pipeline.seen}"
 
 
-def test_unit_task():
+def test_task():
     """a pipeline with no tracker cannot score identities"""
 
     pipeline = StubPipeline([([BOX], [1])], tracker=None, task="detection-only")
@@ -120,7 +120,7 @@ def test_unit_task():
         assert "detection-only" in str(error), f"got {error}"
 
 
-def test_unit_classes_reach_the_metric():
+def test_classes_reach_the_metric():
     """a tracked box with the wrong instrument lowers class accuracy, not MOTA"""
 
     # ground truth is class 3, the stub predicts class 1 on the same box
@@ -134,7 +134,7 @@ def test_unit_classes_reach_the_metric():
     assert result["class_correct"] == 0, f"got {result['class_correct']}"
 
 
-def test_unit_threshold_is_forwarded():
+def test_threshold_is_forwarded():
     """the threshold given to evaluate_sessions is the one the counts are scored at"""
 
     # the prediction overlaps the ground truth at iou 0.538
@@ -147,12 +147,3 @@ def test_unit_threshold_is_forwarded():
     assert lenient["fn"] == 0, f"0.538 clears 0.5, got fn {lenient['fn']}"
     assert strict["fn"] == 2, f"0.538 fails 0.9, got fn {strict['fn']}"
 
-
-if __name__ == "__main__":
-    test_unit_reset()
-    test_unit_counts()
-    test_unit_ordering()
-    test_unit_task()
-    test_unit_classes_reach_the_metric()
-    test_unit_threshold_is_forwarded()
-    print("\nall passed")

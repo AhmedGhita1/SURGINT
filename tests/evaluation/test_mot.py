@@ -50,7 +50,7 @@ def sequence(frames):
     return records
 
 
-def test_unit_perfect():
+def test_perfect():
     """the ground truth scored against itself"""
 
     frames = sequence([([BOX_A, BOX_B], [1, 2], [BOX_A, BOX_B], [7, 8]) for _ in range(5)])
@@ -63,7 +63,7 @@ def test_unit_perfect():
     assert result["gt"] == 10 and result["fp"] == 0 and result["fn"] == 0
 
 
-def test_unit_misses():
+def test_misses():
     """an instrument the detector did not find"""
 
     frames = sequence(
@@ -77,7 +77,7 @@ def test_unit_misses():
     assert np.isclose(result["MOTA"], 1 - 4 / 8), f"got {result['MOTA']}"
 
 
-def test_unit_ghosts():
+def test_ghosts():
     """a box with no instrument under it"""
 
     frames = sequence([([BOX_A], [1], [BOX_A, BOX_B], [7, 8]) for _ in range(4)])
@@ -90,7 +90,7 @@ def test_unit_ghosts():
     assert np.isclose(result["MOTA"], 1 - 4 / 4), f"got {result['MOTA']}"
 
 
-def test_unit_switches():
+def test_switches():
     """the box stays right and the identity changes"""
 
     frames = sequence(
@@ -108,7 +108,7 @@ def test_unit_switches():
     assert np.isclose(result["IDF1"], 0.5), f"expected 0.5, got {result['IDF1']}"
 
 
-def test_unit_aggregate():
+def test_aggregate():
     """sixteen sessions make one number"""
 
     clean = mot_counts(sequence([([BOX_A], [1], [BOX_A], [7]) for _ in range(9)]))
@@ -125,7 +125,7 @@ def test_unit_aggregate():
     assert result["id_switches"] == 0, f"expected 0, got {result['id_switches']}"
 
 
-def test_unit_empty():
+def test_empty():
     """frames with nothing in them"""
 
     empty = np.empty((0, 4))
@@ -146,7 +146,7 @@ SHARED = [0.0, 0.0, 10.0, 10.0]
 OVERLAPPING = [1.0, 0.0, 11.0, 10.0]
 
 
-def test_unit_one_prediction_is_not_counted_twice():
+def test_one_prediction_is_not_counted_twice():
     """one prediction overlapping two gt boxes can satisfy only one of them"""
 
     frames = sequence([
@@ -162,7 +162,7 @@ def test_unit_one_prediction_is_not_counted_twice():
     assert counts["gt"] - counts["fn"] <= counts["predictions"], "more matches than predictions"
 
 
-def test_unit_shared_track_does_not_go_negative():
+def test_shared_track_does_not_go_negative():
     """the sequence that produced a negative false positive count"""
 
     frames = sequence([
@@ -177,7 +177,7 @@ def test_unit_shared_track_does_not_go_negative():
     assert result["MOTA"] <= 1.0, f"MOTA above 1.0: {result['MOTA']}"
 
 
-def test_unit_counts_never_go_negative():
+def test_counts_never_go_negative():
     """matching stays one to one across random frames, so no count can go below zero"""
 
     rng = np.random.default_rng(0)
@@ -202,7 +202,7 @@ def test_unit_counts_never_go_negative():
         assert counts["class_correct"] <= matched, f"class_correct above matched: {counts}"
 
 
-def test_unit_repeated_ids_are_refused():
+def test_repeated_ids_are_refused():
     """an id naming two objects in one frame has no one-to-one matching to find"""
 
     with pytest.raises(ValueError, match="ground truth ids repeat"):
@@ -212,7 +212,7 @@ def test_unit_repeated_ids_are_refused():
         mot_counts(sequence([([SHARED], [1], [SHARED, OVERLAPPING], [5, 5])]))
 
 
-def test_unit_class_accuracy_is_scored_apart_from_geometry():
+def test_class_accuracy_is_scored_apart_from_geometry():
     """a track on the right box with the wrong instrument keeps MOTA at 1.0"""
 
     # gt class 3 every frame, the tracker calls it class 1 in two of four frames
@@ -233,7 +233,7 @@ def test_unit_class_accuracy_is_scored_apart_from_geometry():
     assert np.isclose(result["class_accuracy"], 0.5), f"expected 0.5, got {result['class_accuracy']}"
 
 
-def test_unit_class_accuracy_is_one_when_labels_agree():
+def test_class_accuracy_is_one_when_labels_agree():
     """the same sequence with the right instrument scores both dimensions perfectly"""
 
     frames = sequence([([BOX_A, BOX_B], [1, 2], [3, 5], [BOX_A, BOX_B], [7, 8], [3, 5])] * 4)
@@ -243,7 +243,7 @@ def test_unit_class_accuracy_is_one_when_labels_agree():
     assert result["class_correct"] == 8, f"expected 8, got {result['class_correct']}"
 
 
-def test_unit_class_accuracy_counts_only_matched_pairs():
+def test_class_accuracy_counts_only_matched_pairs():
     """an unmatched box has no pair to agree with, so it leaves the accuracy alone"""
 
     # one located and correctly labeled instrument, one never detected
@@ -254,7 +254,7 @@ def test_unit_class_accuracy_counts_only_matched_pairs():
     assert result["class_accuracy"] == 1.0, f"matched pairs all agree, got {result['class_accuracy']}"
 
 
-def test_unit_every_box_needs_a_class():
+def test_every_box_needs_a_class():
     """a frame with classes missing is refused instead of scored"""
 
     frames = [(np.array([BOX_A, BOX_B]), [1, 2], [3], np.array([BOX_A]), [7], [3])]
@@ -263,7 +263,7 @@ def test_unit_every_box_needs_a_class():
         mot_counts(frames)
 
 
-def test_unit_iou_threshold_is_applied():
+def test_iou_threshold_is_applied():
     """the threshold passed in decides what counts as located"""
 
     # iou is (10 - 3) / (10 + 3) = 0.538: above 0.5, below 0.9
@@ -276,21 +276,3 @@ def test_unit_iou_threshold_is_applied():
     assert lenient["fn"] == 0 and lenient["fp"] == 0, f"0.538 clears 0.5: {lenient}"
     assert strict["fn"] == 1 and strict["fp"] == 1, f"0.538 fails 0.9: {strict}"
 
-
-if __name__ == "__main__":
-    test_unit_perfect()
-    test_unit_misses()
-    test_unit_ghosts()
-    test_unit_switches()
-    test_unit_aggregate()
-    test_unit_empty()
-    test_unit_one_prediction_is_not_counted_twice()
-    test_unit_shared_track_does_not_go_negative()
-    test_unit_counts_never_go_negative()
-    test_unit_repeated_ids_are_refused()
-    test_unit_class_accuracy_is_scored_apart_from_geometry()
-    test_unit_class_accuracy_is_one_when_labels_agree()
-    test_unit_class_accuracy_counts_only_matched_pairs()
-    test_unit_every_box_needs_a_class()
-    test_unit_iou_threshold_is_applied()
-    print("\nall passed")

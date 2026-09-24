@@ -55,7 +55,7 @@ def moved(step: int) -> np.ndarray:
     return BOX + np.array([10.0 * step, 0.0, 10.0 * step, 0.0])
 
 
-def test_unit_lifecycle():
+def test_lifecycle():
     """the state transitions of a single track"""
 
     tracked = build()
@@ -85,7 +85,7 @@ def test_unit_lifecycle():
     assert tracked.track_id == 7, "a rescued track keeps its id"
 
 
-def test_unit_class():
+def test_class():
     """the track decides its own label"""
 
     tracked = build(class_id=0)
@@ -101,7 +101,7 @@ def test_unit_class():
     assert tracked.class_id == 1, f"the majority should be 1, got {tracked.class_id}"
 
 
-def test_unit_motion():
+def test_motion():
     """the reported box is the filter estimate"""
 
     tracked = build()
@@ -124,7 +124,7 @@ def test_unit_motion():
     assert tracked.time_since_update == 1, "predict must increment time_since_update"
 
 
-def test_unit_cost():
+def test_cost():
     """the cost matrix association runs on"""
 
     tracked = build()
@@ -148,7 +148,7 @@ def test_unit_cost():
     assert iou_distance([], np.stack([BOX])).shape == (0, 1), "no tracks keeps the column"
 
 
-def test_unit_associate():
+def test_associate():
     """a cost matrix to matches and leftovers"""
 
     # the assignment minimises the total. the cheapest pair first would give 1.0, not 0.3
@@ -173,7 +173,7 @@ def test_unit_associate():
     assert associate(np.empty((0, 2)), threshold=0.8) == ([], [], [0, 1])
 
 
-def test_unit_update():
+def test_update():
     """one id per instrument, and the output dtypes"""
 
     tracker = ByteTrack()
@@ -200,7 +200,7 @@ def test_unit_update():
     assert empty.boxes.shape == (0, 4) and empty.track_ids.shape == (0,), f"got {empty.boxes.shape}"
 
 
-def test_unit_rescue():
+def test_rescue():
     """a low scoring box continues a track"""
 
     # the rescue threshold is stricter than the first pass. it only holds once the
@@ -216,7 +216,7 @@ def test_unit_rescue():
     assert tracker.next_id == 2, "no second track should have opened"
 
 
-def test_unit_rescue_skips_tentative():
+def test_rescue_skips_tentative():
     """the second pass ignores tracks that are not confirmed"""
 
     tracker = ByteTrack()
@@ -240,7 +240,7 @@ def test_unit_rescue_skips_tentative():
     assert tracker.tracks[0].state is TrackState.LOST, "a lost track must not be revived on low scores"
 
 
-def test_unit_output_thresh():
+def test_output_thresh():
     """a rescued track stays associated without being reported"""
 
     # the filter needs a few frames to learn the motion before the rescue pass holds
@@ -262,7 +262,7 @@ def test_unit_output_thresh():
     assert ByteTrack().output_thresh == 0.0, "output_thresh must default to reporting everything"
 
 
-def test_unit_buffer():
+def test_buffer():
     """a gap within track_buffer, and a gap beyond it"""
 
     # a stationary instrument, so this measures the buffer and not the motion model
@@ -287,7 +287,7 @@ def test_unit_buffer():
     assert fresh.track_ids.tolist() == [2], f"expected id 2, got {fresh.track_ids.tolist()}"
 
 
-def test_unit_filter():
+def test_filter():
     """detections dropped before the filter"""
 
     tracker = ByteTrack(low_thresh=0.1, min_box_area=100.0)
@@ -305,7 +305,7 @@ def test_unit_filter():
     assert tracker.tracks == [], "a box under min_box_area must not open a track"
 
 
-def test_unit_reset():
+def test_reset():
     """reset clears the tracks and the id counter"""
 
     tracker = ByteTrack()
@@ -321,18 +321,3 @@ def test_unit_reset():
         tracked = tracker.update(frame([moved(step)]))
     assert tracked.track_ids.tolist() == [1], f"expected id 1 after reset, got {tracked.track_ids.tolist()}"
 
-
-if __name__ == "__main__":
-    test_unit_lifecycle()
-    test_unit_class()
-    test_unit_motion()
-    test_unit_cost()
-    test_unit_associate()
-    test_unit_update()
-    test_unit_rescue()
-    test_unit_rescue_skips_tentative()
-    test_unit_output_thresh()
-    test_unit_buffer()
-    test_unit_filter()
-    test_unit_reset()
-    print("\nall passed")
