@@ -86,19 +86,21 @@ def test_lifecycle():
 
 
 def test_class():
-    """the track decides its own label"""
+    """the track decides its own label and keeps its confidence associated"""
 
-    tracked = build(class_id=0)
-    tracked.update(BOX, SCORE, 0)
+    tracked = Track(7, BOX, 0.99, 0, KalmanFilter())
+    tracked.update(BOX, 0.8, 0)
 
     # one vote against two does not change the majority
-    tracked.update(BOX, SCORE, 1)
+    tracked.update(BOX, 0.6, 1)
     assert tracked.class_id == 0, f"the majority is still 0, got {tracked.class_id}"
+    assert np.isclose(tracked.score, 0.99), f"got {tracked.score}"
 
     # the vote is a count, so a new majority takes over
-    for _ in range(3):
-        tracked.update(BOX, SCORE, 1)
+    tracked.update(BOX, 0.7, 1)
+    tracked.update(BOX, 0.65, 1)
     assert tracked.class_id == 1, f"the majority should be 1, got {tracked.class_id}"
+    assert np.isclose(tracked.score, 0.7), f"got {tracked.score}"
 
 
 def test_motion():

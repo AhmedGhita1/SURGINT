@@ -34,11 +34,12 @@ class Track:
         kalman: KalmanFilter,
     ):
         self.track_id = track_id
-        self.score = score
+        self.latest_score = score
         self.kalman = kalman
         self.mean, self.covariance = kalman.initiate(to_measurement(box))
 
         self.votes = Counter([class_id])
+        self.class_scores = {class_id: score}
         self.hits = 1
         self.time_since_update = 0
         self.state = TrackState.TENTATIVE
@@ -53,6 +54,11 @@ class Track:
         """the most voted class over the track's matched detections."""
         return self.votes.most_common(1)[0][0]
 
+    @property
+    def score(self) -> float:
+        """the best detector confidence associated with the majority class."""
+        return self.class_scores[self.class_id]
+
     def predict(self) -> None:
         """advance the estimate one frame without a detection."""
         self.mean, self.covariance = self.kalman.predict(self.mean, self.covariance)
@@ -63,8 +69,9 @@ class Track:
         self.mean, self.covariance = self.kalman.update(
             self.mean, self.covariance, to_measurement(box)
         )
-        self.score = score
+        self.latest_score = score
         self.votes[class_id] += 1
+        self.class_scores[class_id] = max(self.class_scores.get(class_id, score), score)
         self.hits += 1
         self.time_since_update = 0
 
@@ -218,7 +225,7 @@ class ByteTrack:
             for track in self.tracks
             if track.state is TrackState.CONFIRMED
             and track.time_since_update == 0
-            and track.score >= self.output_thresh
+            and track.latest_score >= self.output_thresh
         ]
         return Detections(
             np.array([track.box for track in visible], dtype=np.float32).reshape(-1, 4),

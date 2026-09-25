@@ -130,19 +130,20 @@ def test_finalize_empty_session():
 
 
 def test_class():
-    """the track already voted, so the inventory takes its latest answer"""
+    """the latest track class retains only confidence associated with that class"""
 
     inventory = Inventory()
-    inventory.update(frame([0], [1]))
-    inventory.update(frame([0], [1]))
-    inventory.update(frame([1], [1]))
+    inventory.update(frame([0], [1], scores=[0.99]))
+    inventory.update(frame([1], [1], scores=[0.6]))
 
     assert inventory.items[1].class_id == 1, f"got {inventory.items[1].class_id}"
     assert inventory.counts() == {1: 1}, f"got {inventory.counts()}"
+    assert np.isclose(inventory.items[1].score, 0.6), f"got {inventory.items[1].score}"
 
-    # the score kept is the best the track ever scored
-    inventory.update(frame([1], [1], scores=[0.4]))
-    assert np.isclose(inventory.items[1].score, 0.9), f"got {inventory.items[1].score}"
+    # Returning to a previous class recovers only that class's best score.
+    inventory.update(frame([0], [1], scores=[0.4]))
+    assert inventory.items[1].class_id == 0, f"got {inventory.items[1].class_id}"
+    assert np.isclose(inventory.items[1].score, 0.99), f"got {inventory.items[1].score}"
 
 
 def test_reset():

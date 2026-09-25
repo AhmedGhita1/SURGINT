@@ -53,6 +53,7 @@ class Inventory:
     def reset(self) -> None:
         """drop every item and rewind the frame counter. call between sessions"""
         self.items: Dict[int, InventoryItem] = {}
+        self._scores_by_class: Dict[int, Dict[int, float]] = {}
         self.simultaneous: Dict[int, int] = {}
         self.frame = 0
 
@@ -66,10 +67,17 @@ class Inventory:
         ):
             track_id, class_id, score = int(track_id), int(class_id), float(score)
             item = self.items.get(track_id)
+            class_scores = self._scores_by_class.setdefault(track_id, {})
+            class_scores[class_id] = max(class_scores.get(class_id, score), score)
 
             if item is None:
                 self.items[track_id] = InventoryItem(
-                    track_id, class_id, self.frame, self.frame, 1, score
+                    track_id,
+                    class_id,
+                    self.frame,
+                    self.frame,
+                    1,
+                    class_scores[class_id],
                 )
                 continue
 
@@ -77,7 +85,7 @@ class Inventory:
             item.class_id = class_id
             item.last_seen = self.frame
             item.frames += 1
-            item.score = max(item.score, score)
+            item.score = class_scores[class_id]
 
         present = Counter(int(class_id) for class_id in detections.class_ids)
         for class_id, count in present.items():

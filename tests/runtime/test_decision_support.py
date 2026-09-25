@@ -40,6 +40,27 @@ def test_tracked_detection_resolves_through_inventory_and_decision_support():
     assert decision.policy_version == "2.1.0"
 
 
+def test_decision_confidence_belongs_to_the_final_track_class():
+    inventory = Inventory()
+    inventory.update(tracked_frame([0], [7], [0.99]))
+    inventory.update(tracked_frame([1], [7], [0.6]))
+    support = InventoryDecisionSupport(
+        labels=["scalpel", "gauze"],
+        perception_version="perception-v1",
+    )
+
+    decision = support.resolve_inventory(
+        inventory,
+        post_procedure(
+            use_state="unused",
+            contamination_state="not-regulated",
+        ),
+    )[7]
+
+    assert decision.label == "gauze"
+    assert decision.confidence == pytest.approx(0.6)
+
+
 def test_inventory_items_can_use_track_specific_context():
     inventory = Inventory()
     inventory.update(tracked_frame([0, 1], [7, 8], [0.91, 0.88]))
