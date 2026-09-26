@@ -44,6 +44,11 @@ class SurgintDataset(Dataset):
         boxes = {image["id"]: [] for image in self.gt["images"]}
         classes = {image["id"]: [] for image in self.gt["images"]}
         tracks = {image["id"]: [] for image in self.gt["images"]}
+        instances = {image["id"]: [] for image in self.gt["images"]}
+        instance_fields = ["instance_uid" in annotation for annotation in self.gt["annotations"]]
+        if tracking and any(instance_fields) and not all(instance_fields):
+            raise ValueError(f"{annos_path.name} has incomplete instance_uid values")
+        has_instances = tracking and all(instance_fields)
         
         for annotation in self.gt["annotations"]:
             x, y, width, height = annotation["bbox"]
@@ -55,6 +60,8 @@ class SurgintDataset(Dataset):
                 if "track_id" not in annotation:
                     raise ValueError(f"{annos_path.name} has no track_id; {task} requires it")
                 tracks[annotation["image_id"]].append(annotation["track_id"])
+                if has_instances:
+                    instances[annotation["image_id"]].append(annotation["instance_uid"])
 
         self.samples = [
             (
@@ -63,6 +70,7 @@ class SurgintDataset(Dataset):
                 np.array(boxes[image["id"]], dtype=np.float32).reshape(-1, 4),
                 np.array(classes[image["id"]], dtype=np.int64),
                 np.array(tracks[image["id"]], dtype=np.int64) if tracking else None,
+                np.array(instances[image["id"]], dtype=str) if has_instances else None,
             )
             for image in self.gt["images"]
         ]
@@ -71,7 +79,7 @@ class SurgintDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, index: int) -> dict:
-        image_id, file_name, boxes, class_ids, track_ids = self.samples[index]
+        image_id, file_name, boxes, class_ids, track_ids, instance_uids = self.samples[index]
         frame = np.asarray(Image.open(self.root / self.split / file_name).convert("RGB"))
 
         if self.transform is None:
@@ -82,6 +90,8 @@ class SurgintDataset(Dataset):
         sample["image_id"] = image_id
         if track_ids is not None:
             sample["track_ids"] = track_ids
+        if instance_uids is not None:
+            sample["instance_uids"] = instance_uids
 
         return sample
 

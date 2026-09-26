@@ -59,6 +59,7 @@ def samples(count, marker, class_id=0):
             "boxes": BOX.reshape(1, 4),
             "class_ids": np.full(1, class_id, dtype=np.int64),
             "track_ids": np.array([1], dtype=np.int64),
+            "instance_uids": np.array([f"instance-{marker}"], dtype=str),
             "image_id": index,
         }
         for index in range(count)
@@ -97,6 +98,10 @@ def test_counts():
     # the aggregate pools the counts, so one miss in six frames
     assert result["gt"] == 6 and result["fn"] == 1, f"got gt {result['gt']}, fn {result['fn']}"
     assert np.isclose(result["MOTA"], 1 - 1 / 6), f"expected {1 - 1 / 6}, got {result['MOTA']}"
+    assert result["inventory_ground_truth"] == 2
+    assert result["inventory_predictions"] == 2
+    assert result["inventory_absolute_error"] == 0
+    assert result["session_exact_match_rate"] == 1.0
 
 
 def test_ordering():
@@ -146,4 +151,18 @@ def test_threshold_is_forwarded():
 
     assert lenient["fn"] == 0, f"0.538 clears 0.5, got fn {lenient['fn']}"
     assert strict["fn"] == 2, f"0.538 fails 0.9, got fn {strict['fn']}"
+
+
+def test_inventory_uses_physical_ids_and_finalized_predictions():
+    session = samples(2, 0)
+    session[0]["instance_uids"] = np.array(["physical-1"], dtype=str)
+    session[1]["instance_uids"] = np.array(["physical-1"], dtype=str)
+    outputs = [([BOX, BOX + 100], [1, 2]), ([BOX], [1])]
+
+    result = evaluate_sessions(StubPipeline(outputs), {"session_000": session})
+
+    assert result["inventory_ground_truth"] == 1
+    assert result["inventory_predictions"] == 2
+    assert result["inventory_absolute_error"] == 1
+    assert result["class_exact_match_rate"] == 0.0
 

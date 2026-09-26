@@ -150,6 +150,11 @@ def test_task():
     sample = SurgintDataset(root, "val", "detection-tracking")[0]
     assert sample["track_ids"].tolist() == [7], f"got {sample['track_ids'].tolist()}"
     assert sample["track_ids"].dtype == np.int64, "track ids must be int64"
+    assert "instance_uids" not in sample, "optional physical ids were invented"
+
+    root = build_root([annotation(track_id=7, instance_uid="scalpel-00")])
+    sample = SurgintDataset(root, "val", "detection-tracking")[0]
+    assert sample["instance_uids"].tolist() == ["scalpel-00"]
 
     # tracking against a file with no track_id is a data error, caught at load
     root = build_root([annotation()])
@@ -158,6 +163,16 @@ def test_task():
         assert False, "should raise ValueError when the annotations carry no track_id"
     except ValueError:
         pass
+
+    root = build_root([
+        annotation(1, image_id=0, track_id=7, instance_uid="scalpel-00"),
+        annotation(2, image_id=0, track_id=8),
+    ])
+    try:
+        SurgintDataset(root, "val", "detection-tracking")
+        assert False, "should reject incomplete instance_uid values"
+    except ValueError as error:
+        assert "incomplete instance_uid" in str(error)
 
     # an unrecognized task fails immediately
     try:
