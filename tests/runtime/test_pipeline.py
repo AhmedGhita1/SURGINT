@@ -17,6 +17,7 @@ coverage:
 import tempfile
 from pathlib import Path
 
+import pytest
 import numpy as np
 import torch
 
@@ -53,7 +54,7 @@ def blank() -> np.ndarray:
     return np.zeros((FRAME_HEIGHT, FRAME_WIDTH, 3), dtype=np.uint8)
 
 
-def test_unit_task():
+def test_task():
     """the key the pipeline is built with"""
 
     transform = Transform(INPUT_SIZE)
@@ -69,7 +70,7 @@ def test_unit_task():
         pass
 
 
-def test_unit_predict():
+def test_predict():
     """a frame in, Detections out"""
 
     transform = Transform(INPUT_SIZE)
@@ -100,7 +101,7 @@ def test_unit_predict():
     assert empty.scores.shape == (0,) and empty.class_ids.shape == (0,)
 
 
-def test_unit_tracking():
+def test_tracking():
     """track_ids across frames, and reset between sequences"""
 
     transform = Transform(INPUT_SIZE)
@@ -133,7 +134,8 @@ def test_unit_tracking():
     assert result.track_ids.tolist() == [1], f"expected id 1 after reset, got {result.track_ids.tolist()}"
 
 
-def test_unit_from_checkpoint():
+@pytest.mark.integration
+def test_from_checkpoint():
     """the geometry comes from meta.yaml, not from a config"""
 
     detector = Detector.from_pretrained(CHECKPOINT, {0: "scalpel", 1: "scissors"})
@@ -168,11 +170,3 @@ def test_unit_from_checkpoint():
             assert False, "should raise for a checkpoint without meta.yaml"
         except FileNotFoundError:
             pass
-
-
-if __name__ == "__main__":
-    test_unit_task()
-    test_unit_predict()
-    test_unit_tracking()
-    test_unit_from_checkpoint()
-    print("\nall passed")

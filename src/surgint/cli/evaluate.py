@@ -87,7 +87,12 @@ def run_sessions(config: Config, checkpoint: Path, device: str) -> Dict:
         annotations=[dataset.annotations for dataset in sessions.values()],
     )
 
-    metrics = evaluate_sessions(pipeline, sessions, config.iou_threshold)
+    metrics = evaluate_sessions(
+        pipeline,
+        sessions,
+        config.iou_threshold,
+        class_ids=tuple(next(iter(sessions.values())).mappings),
+    )
     frames = sum(len(dataset) for dataset in sessions.values())
 
     summary = {
@@ -112,6 +117,7 @@ def run_sessions(config: Config, checkpoint: Path, device: str) -> Dict:
             f"    {name:<14} MOTA {values['MOTA']:.3f}"
             f"  IDF1 {values['IDF1']:.3f}"
             f"  switches {values['id_switches']}"
+            f"  inventory error {values['inventory_absolute_error']}"
         )
     print(f"\nwrote {run_dir}")
     return summary
