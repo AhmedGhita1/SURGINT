@@ -17,12 +17,16 @@ coverage:
 import ast
 import re
 import sys
-import tomllib
 from fnmatch import fnmatch
 from importlib.metadata import packages_distributions
 from pathlib import Path
 
 import pytest
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from surgint.ontology.loader import ONTOLOGY_FILE
 from surgint.policy.loader import POLICY_FILE
