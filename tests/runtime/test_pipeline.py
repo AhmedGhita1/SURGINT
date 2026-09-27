@@ -170,4 +170,3 @@ def test_from_checkpoint():
             assert False, "should raise for a checkpoint without meta.yaml"
         except FileNotFoundError:
             pass
-

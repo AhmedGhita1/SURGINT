@@ -63,4 +63,3 @@ def test_nms():
     # suppression is class agnostic, so it runs on boxes alone
     assert nms(boxes[:1], scores[:1], 0.5).tolist() == [0], "a single box survives"
     assert nms(np.empty((0, 4)), np.empty(0), 0.5).tolist() == [], "an empty frame keeps nothing"
-

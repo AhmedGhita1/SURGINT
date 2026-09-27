@@ -215,4 +215,3 @@ def test_collate():
     single = next(iter(DataLoader(dataset, batch_size=1, collate_fn=collate)))
     assert single["pixel_values"].shape[0] == 1, "batch dimension collapsed"
     assert len(single["labels"]) == 1, "labels lost the batch dimension"
-

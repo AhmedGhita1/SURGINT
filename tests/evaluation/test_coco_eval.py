@@ -79,4 +79,3 @@ def test_coco_evaluate():
     metrics = coco_evaluate(annotations, [])
     assert metrics["mAP50_95"] == 0.0, f"got {metrics['mAP50_95']}"
     assert metrics["per_class"] == {"scalpel": 0.0, "scissors": 0.0}
-

@@ -322,4 +322,3 @@ def test_reset():
     for step in range(CONFIRM_HITS):
         tracked = tracker.update(frame([moved(step)]))
     assert tracked.track_ids.tolist() == [1], f"expected id 1 after reset, got {tracked.track_ids.tolist()}"
-

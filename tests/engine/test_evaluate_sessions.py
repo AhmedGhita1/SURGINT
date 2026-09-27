@@ -165,4 +165,3 @@ def test_inventory_uses_physical_ids_and_finalized_predictions():
     assert result["inventory_predictions"] == 2
     assert result["inventory_absolute_error"] == 1
     assert result["class_exact_match_rate"] == 0.0
-

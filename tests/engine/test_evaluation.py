@@ -130,4 +130,3 @@ def test_threshold():
     detector = StubDetector(predicted, class_id=0)
     evaluate(detector, loader, transform)
     assert detector.calls == len(loader), f"got {detector.calls} calls for {len(loader)} batches"
-

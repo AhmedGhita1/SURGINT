@@ -134,4 +134,3 @@ def test_tracking():
     # the next frame is predicted before it arrives
     predicted, _ = kalman.predict(mean, covariance)
     assert np.isclose(predicted[0], MEASUREMENT[0] + velocity * 20, atol=1.0), f"got {predicted[0]:.2f}"
-

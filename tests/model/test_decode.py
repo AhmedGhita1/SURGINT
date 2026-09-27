@@ -60,4 +60,3 @@ def test_decode():
     assert len(detections) == 2, "one entry per image in the batch"
     assert len(detections[0][0]) == 1, "first image has one detection"
     assert len(detections[1][0]) == 0, "second image has none"
-

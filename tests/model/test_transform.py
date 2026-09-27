@@ -217,4 +217,3 @@ def test_postprocess():
 
     # one canvas pixel is 1/0.64 frame pixels, so the round trip lands within that
     assert np.allclose(recovered, boxes, rtol=RTOL, atol=1e-2), f"round trip drifted: {recovered}"
-

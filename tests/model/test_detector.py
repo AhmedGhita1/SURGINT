@@ -155,4 +155,3 @@ def test_forward():
 
     # without labels there is no loss
     assert detector(pixel_values()).loss is None, "a forward without labels must not report a loss"
-

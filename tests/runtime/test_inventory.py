@@ -177,4 +177,3 @@ def test_task():
         assert False, "should raise ValueError without track ids"
     except ValueError as error:
         assert "detection-tracking" in str(error), f"got {error}"
-

@@ -203,4 +203,3 @@ def test_state():
 
     # a resumed run continues rather than restarting
     assert list(resumed.train()) == [], "epochs already run must not repeat"
-

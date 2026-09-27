@@ -275,4 +275,3 @@ def test_iou_threshold_is_applied():
 
     assert lenient["fn"] == 0 and lenient["fp"] == 0, f"0.538 clears 0.5: {lenient}"
     assert strict["fn"] == 1 and strict["fp"] == 1, f"0.538 fails 0.9: {strict}"
-
