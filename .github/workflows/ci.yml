@@ -59,7 +59,7 @@ jobs:
       # repository. the build context admits nothing else, so it is written there.
       - run: python .github/scripts/ci_checkpoint.py models/ci
 
-      - run: docker build -t surgint:ci --build-arg MODEL_PATH=models/ci .
+      - run: docker build --target ci -t surgint:ci .
 
       - name: start the container
         run: |
