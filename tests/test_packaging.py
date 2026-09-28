@@ -32,7 +32,7 @@ from surgint.ontology.loader import ONTOLOGY_FILE
 from surgint.policy.loader import POLICY_FILE
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "surgint"
+SOURCES = (ROOT / "services", ROOT / "surgint")
 PYPROJECT = ROOT / "pyproject.toml"
 
 
@@ -85,17 +85,18 @@ def candidates(module: str, index: dict) -> set:
 
 
 def test_source_imports_are_declared():
-    """every third-party import in surgint/ resolves to a declared dependency"""
+    """every third-party import in a shipped package resolves to a declared dependency"""
     index = packages_distributions()
     declared = declared_distributions()
 
     undeclared = {}
-    for path in sorted(SOURCE.rglob("*.py")):
-        for module in sorted(top_level_imports(path)):
-            if module == "surgint" or module in sys.stdlib_module_names:
-                continue
-            if not candidates(module, index) & declared:
-                undeclared.setdefault(module, []).append(str(path.relative_to(ROOT)))
+    for source in SOURCES:
+        for path in sorted(source.rglob("*.py")):
+            for module in sorted(top_level_imports(path)):
+                if module in {"services", "surgint"} or module in sys.stdlib_module_names:
+                    continue
+                if not candidates(module, index) & declared:
+                    undeclared.setdefault(module, []).append(str(path.relative_to(ROOT)))
 
     report = "; ".join(f"{module} in {', '.join(sites)}" for module, sites in sorted(undeclared.items()))
     assert not undeclared, f"undeclared third-party imports: {report}"

@@ -1,6 +1,6 @@
 # the package and every runtime pin it declares, plus the test dependency.
 # pyproject.toml is the single source of truth for those pins.
--e .[dev]
+-e .[dev,serving]
 
 # surgint imports neither of these.
 # torchvision is pinned to pair with the torch build ci installs from the

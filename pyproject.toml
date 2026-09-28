@@ -26,7 +26,13 @@ dependencies = [
 training = [
     "wandb==0.30.0",
 ]
+serving = [
+    "fastapi==0.141.1",
+    "pydantic==2.13.5",
+    "uvicorn==0.53.0",
+]
 dev = [
+    "httpx2==2.13.1",
     "pytest==8.3.3",
     "ruff==0.16.8",
     "tomli==2.4.1; python_version < '3.11'",
@@ -40,7 +46,7 @@ select = ["E9", "F"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["surgint*"]
+include = ["services*", "surgint*"]
 
 [tool.setuptools.package-data]
 "surgint.ontology" = ["*.owl"]
