@@ -1,4 +1,5 @@
 import argparse
+from dataclasses import asdict
 from pathlib import Path
 from typing import Dict
 
@@ -11,10 +12,22 @@ from surgint.model.transform import Transform
 from surgint.engine.trainer import Trainer
 from surgint.model.detector import Detector
 
+from pipelines.wandb_tracking import (
+    DEFAULT_MODEL_ARTIFACT,
+    init_training_run,
+    log_candidate_model,
+    log_epoch,
+)
+
 CONFIG = Path("configs/train.yaml")
 DEVICE = "cuda"
 
-def train(config: Config, device: str) -> Dict:
+def train(
+    config: Config,
+    device: str,
+    wandb_run=None,
+    artifact_name: str = DEFAULT_MODEL_ARTIFACT,
+) -> Dict:
     torch.manual_seed(config.seed)
 
     transform = Transform(config.input_size)
@@ -75,7 +88,10 @@ def train(config: Config, device: str) -> Dict:
             dataset_version=config.dataset_id,
         )
         trainer.save(run_dir / "latest")
-        writer.append_log(result.as_dict())
+        record = result.as_dict()
+        writer.append_log(record)
+        if wandb_run is not None:
+            log_epoch(wandb_run, record, result.epoch)
 
         line = f"epoch [{result.epoch}/{config.epochs}]"
         line += "".join(f"  {name} {value:.4f}" for name, value in result.train.items())
@@ -92,6 +108,13 @@ def train(config: Config, device: str) -> Dict:
         },
     }
     writer.write_summary(summary)
+    if wandb_run is not None:
+        log_candidate_model(
+            wandb_run,
+            run_dir / "best",
+            artifact_name,
+            config.run_id,
+        )
     print(f"wrote {run_dir}")
     return summary
 
@@ -100,9 +123,24 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--device", default=DEVICE)
+    parser.add_argument("--wandb-project")
+    parser.add_argument("--wandb-entity")
+    parser.add_argument("--artifact-name", default=DEFAULT_MODEL_ARTIFACT)
     args = parser.parse_args()
 
-    train(load_config(args.config), args.device)
+    config = load_config(args.config)
+    if args.wandb_project is None:
+        train(config, args.device)
+        return
+
+    run = init_training_run(
+        args.wandb_project,
+        args.wandb_entity,
+        config.run_id,
+        asdict(config),
+    )
+    with run:
+        train(config, args.device, run, args.artifact_name)
 
 
 if __name__ == "__main__":
