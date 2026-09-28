@@ -14,11 +14,15 @@ RUN python -m pip install torch==2.4.1 \
     && useradd --create-home --uid 10001 surgint
 
 # the source is built from /src and discarded, so /app holds no copy of the
-# package to shadow the installed one on sys.path
+# package to shadow the installed one on sys.path.
+#
+# the default 15 second socket timeout gives up on a slow mirror partway
+# through a large sdist, and a half-read body then fails its hash check
 COPY pyproject.toml README.md /src/
 COPY surgint/ /src/surgint/
 COPY services/ /src/services/
-RUN python -m pip install "/src[serving]" && rm -rf /src
+RUN python -m pip install --retries 10 --timeout 120 "/src[serving]" \
+    && rm -rf /src
 
 WORKDIR /app
 
