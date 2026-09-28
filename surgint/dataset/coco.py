@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from PIL import Image
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 from surgint.model import TASKS
 
@@ -112,3 +112,15 @@ def collate(batch: list[dict]) -> dict:
         "frame_sizes": [sample["frame_size"] for sample in batch],
         "labels": labels,
     }
+
+
+def build_loader(dataset: SurgintDataset, batch_size: int, shuffle: bool) -> DataLoader:
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        collate_fn=collate,
+        num_workers=4,
+        pin_memory=True,
+        persistent_workers=True,
+    )

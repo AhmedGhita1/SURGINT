@@ -17,13 +17,18 @@ import sys
 
 import pytest
 
-COMMANDS = ("train", "evaluate", "infer", "render")
+COMMANDS = (
+    ("train", "pipelines.train"),
+    ("evaluate", "pipelines.evaluate"),
+    ("infer", "surgint.cli.infer"),
+    ("render", "surgint.cli.render"),
+)
 
 
-@pytest.mark.parametrize("command", COMMANDS)
-def test_help_builds_the_parser(command, monkeypatch, capsys):
+@pytest.mark.parametrize(("command", "module_name"), COMMANDS)
+def test_help_builds_the_parser(command, module_name, monkeypatch, capsys):
     """--help reaches argparse, so the module, its imports and its defaults are sound"""
-    module = importlib.import_module(f"surgint.cli.{command}")
+    module = importlib.import_module(module_name)
     assert callable(getattr(module, "main", None)), f"{command} has no main()"
 
     monkeypatch.setattr(sys, "argv", [command, "--help"])

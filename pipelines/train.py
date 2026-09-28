@@ -3,30 +3,16 @@ from pathlib import Path
 from typing import Dict
 
 import torch
-from torch.utils.data import DataLoader
 
 from surgint.artifacts import RunWriter
 from surgint.config import Config, load_config
-from surgint.dataset.coco import SurgintDataset, collate
+from surgint.dataset.coco import SurgintDataset, build_loader
 from surgint.model.transform import Transform
 from surgint.engine.trainer import Trainer
 from surgint.model.detector import Detector
 
 CONFIG = Path("configs/train.yaml")
 DEVICE = "cuda"
-
-
-def build_loader(dataset: SurgintDataset, batch_size: int, shuffle: bool) -> DataLoader:
-    return DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        collate_fn=collate,
-        num_workers=4,
-        pin_memory=True,
-        persistent_workers=True,
-    )
-
 
 def train(config: Config, device: str) -> Dict:
     torch.manual_seed(config.seed)

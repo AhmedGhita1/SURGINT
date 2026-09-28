@@ -3,9 +3,8 @@ from pathlib import Path
 from typing import Dict, List
 
 from surgint.artifacts import RunWriter
-from surgint.cli.train import build_loader
 from surgint.config import Config, load_config
-from surgint.dataset.coco import SurgintDataset
+from surgint.dataset.coco import SurgintDataset, build_loader
 from surgint.model.transform import Transform
 from surgint.engine.evaluator import evaluate, evaluate_sessions
 from surgint.model.detector import Detector
