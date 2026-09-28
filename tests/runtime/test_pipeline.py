@@ -10,7 +10,7 @@ coordinate round trip can be checked exactly.
 coverage:
 - task:       the key is validated, track_ids stay empty for detection-only
 - predict:    Detections in frame pixels, aligned arrays, threshold
-- checkpoint: from_checkpoint takes its geometry from meta.yaml
+- checkpoint: from_checkpoint takes its geometry from the model manifest
 - tracking:   track_ids under detection-tracking, None under detection-only
 """
 
@@ -136,7 +136,7 @@ def test_tracking():
 
 @pytest.mark.integration
 def test_from_checkpoint():
-    """the geometry comes from meta.yaml, not from a config"""
+    """the geometry comes from the model manifest, not from a config"""
 
     detector = Detector.from_pretrained(CHECKPOINT, {0: "scalpel", 1: "scissors"})
     geometry = {
@@ -162,11 +162,11 @@ def test_from_checkpoint():
         # it still runs on a frame
         assert isinstance(pipeline.predict(blank(), 0.5), Detections)
 
-        # weights without meta.yaml are not a checkpoint
+        # weights without a manifest are not a model artifact
         bare = Path(directory) / "bare"
         detector.model.save_pretrained(bare)
         try:
             Pipeline.from_checkpoint(bare, device="cpu")
-            assert False, "should raise for a checkpoint without meta.yaml"
+            assert False, "should raise for an artifact without a manifest"
         except FileNotFoundError:
             pass

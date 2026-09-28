@@ -61,9 +61,19 @@ def train(config: Config, device: str) -> Dict:
 
     for result in trainer.train():
         if result.is_best:
-            detector.save_checkpoint(run_dir / "best", meta)
+            detector.save_checkpoint(
+                run_dir / "best",
+                meta,
+                training_run=config.run_id,
+                dataset_version=config.dataset_id,
+            )
 
-        detector.save_checkpoint(run_dir / "latest", meta)
+        detector.save_checkpoint(
+            run_dir / "latest",
+            meta,
+            training_run=config.run_id,
+            dataset_version=config.dataset_id,
+        )
         trainer.save(run_dir / "latest")
         writer.append_log(result.as_dict())
 

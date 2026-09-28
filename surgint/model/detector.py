@@ -2,28 +2,36 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union, cast
 
 import torch
-import yaml
 from torch import nn
 from transformers import RTDetrForObjectDetection
 
+from surgint.artifacts import ModelManifest
+
 
 class Detector(nn.Module):
-    def __init__(self, model: RTDetrForObjectDetection, meta: Optional[Dict] = None):
+    def __init__(
+        self,
+        model: RTDetrForObjectDetection,
+        manifest: Optional[ModelManifest] = None,
+    ):
         super().__init__()
         self.model = model
-        self.meta = meta
+        self.manifest = manifest
+        self.meta = manifest.runtime_meta if manifest is not None else None
 
     @classmethod
     def from_checkpoint(cls, checkpoint: Union[str, Path]) -> "Detector":
-        """loads a surgint checkpoint. meta.yaml is required"""
-        meta_path = Path(checkpoint) / "meta.yaml"
-        if not meta_path.exists():
-            raise FileNotFoundError(f"{checkpoint} has no meta.yaml")
-
-        return cls(
-            cast(RTDetrForObjectDetection, RTDetrForObjectDetection.from_pretrained(checkpoint)),
-            yaml.safe_load(meta_path.read_text()),
+        """Load and validate a Surgint model artifact."""
+        manifest = ModelManifest.load(checkpoint)
+        model = cast(
+            RTDetrForObjectDetection,
+            RTDetrForObjectDetection.from_pretrained(checkpoint),
         )
+        labels = {int(index): label for index, label in model.config.id2label.items()}
+        expected = {index: label for index, label in enumerate(manifest.labels)}
+        if labels != expected:
+            raise ValueError(f"model config labels {labels} do not match manifest labels {expected}")
+        return cls(model, manifest)
 
     @classmethod
     def from_pretrained(
@@ -82,11 +90,27 @@ class Detector(nn.Module):
         outputs = self(pixel_values)
         return outputs.logits.cpu(), outputs.pred_boxes.cpu()
 
-    def save_checkpoint(self, checkpoint: Union[str, Path], meta: Dict) -> None:
-        """weights and meta.yaml."""
+    def save_checkpoint(
+        self,
+        checkpoint: Union[str, Path],
+        meta: Dict,
+        *,
+        training_run: Optional[str] = None,
+        dataset_version: Optional[str] = None,
+    ) -> None:
+        """Write weights and their versioned model manifest."""
         checkpoint = Path(checkpoint)
         checkpoint.mkdir(parents=True, exist_ok=True)
         self.model.save_pretrained(checkpoint)
 
-        self.meta = {**meta, "labels": [self.id2label[index] for index in sorted(self.id2label)]}
-        (checkpoint / "meta.yaml").write_text(yaml.safe_dump(self.meta, sort_keys=False))
+        labels = [self.id2label[index] for index in sorted(self.id2label)]
+        manifest = ModelManifest.create(
+            checkpoint,
+            meta,
+            labels,
+            training_run=training_run,
+            dataset_version=dataset_version,
+        )
+        manifest.write(checkpoint)
+        self.manifest = manifest
+        self.meta = manifest.runtime_meta
