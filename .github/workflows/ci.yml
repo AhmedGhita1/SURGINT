@@ -36,3 +36,55 @@ jobs:
       - run: pytest -q tests/unit
       - run: pytest -q tests/integration
       - run: pytest -q tests/model
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-rtdetr
+
+      - run: pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install .
+
+      # the image needs a checkpoint to serve and models/ is not in the
+      # repository. the build context admits nothing else, so it is written there.
+      - run: python .github/scripts/ci_checkpoint.py models/ci
+
+      - run: docker build -f docker/Dockerfile.api -t surgint:ci --build-arg MODEL_PATH=models/ci .
+
+      - name: start the container
+        run: |
+          docker run -d --name surgint-ci -p 127.0.0.1:8000:8000 surgint:ci
+          for _ in $(seq 90); do
+            if curl -fsS -m 2 http://127.0.0.1:8000/health/ready > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "the api did not become ready"
+          exit 1
+
+      # what the image installs is what it runs: a source copy left at /app
+      # would come first on sys.path and hide a missing packaged resource
+      - name: the image serves the installed package
+        run: |
+          paths=$(docker exec surgint-ci python -c 'import services, surgint; print(surgint.__file__, services.__file__)')
+          echo "$paths"
+          case "$paths" in
+            *site-packages*site-packages*) ;;
+            *) echo "a source copy in the image shadows the installed package"; exit 1 ;;
+          esac
+
+      - run: docker/smoke.sh
+
+      - if: always()
+        run: docker logs surgint-ci
