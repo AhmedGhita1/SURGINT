@@ -145,6 +145,82 @@ def test_frame_rejects_invalid_image_without_updating_session() -> None:
         assert session.decision_support.frame_count == 0
 
 
+def test_session_finalization_returns_inventory_decisions() -> None:
+    application = create_app(
+        ServingSettings(checkpoint=Path("model")),
+        lambda _: FakeDetector(),
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        session = application.state.sessions[session_id]
+        session.decision_support.update(
+            Detections(
+                boxes=np.asarray([[10, 20, 30, 40]], dtype=np.float32),
+                scores=np.asarray([0.9], dtype=np.float32),
+                class_ids=np.asarray([0], dtype=np.int64),
+                track_ids=np.asarray([7], dtype=np.int64),
+            )
+        )
+
+        response = client.post(
+            f"/v1/sessions/{session_id}/finalize",
+            json={
+                "workflow_stage": "post-procedure-clearing",
+                "use_state": "used",
+                "contamination_state": "not-regulated",
+                "overrides": {"0": {"lifecycle": "reusable"}},
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "frame_count": 1,
+            "items": [
+                {
+                    "class_id": 0,
+                    "label": "scalpel",
+                    "count": 1,
+                    "confidence": pytest.approx(0.9),
+                    "outcome": "recommendation",
+                    "action": "secure-transport-to-reprocessing",
+                    "reason": "Reusable sharp items require secure transport to reprocessing.",
+                    "matched_rule": "reusable-sharp",
+                    "missing_fields": [],
+                }
+            ],
+        }
+
+        response = client.post(
+            f"/v1/sessions/{session_id}/finalize",
+            json={"workflow_stage": "post-procedure-clearing"},
+        )
+        assert response.status_code == 409
+        assert response.json() == {"detail": "session has already been finalized"}
+
+
+def test_finalized_session_rejects_more_frames() -> None:
+    application = create_app(
+        ServingSettings(checkpoint=Path("model")),
+        lambda _: FakeDetector(),
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        response = client.post(
+            f"/v1/sessions/{session_id}/finalize",
+            json={"workflow_stage": "post-procedure-clearing"},
+        )
+        assert response.status_code == 200
+
+        response = client.post(
+            f"/v1/sessions/{session_id}/frames",
+            files={"image": ("frame.png", image_bytes(), "image/png")},
+        )
+        assert response.status_code == 409
+        assert response.json() == {"detail": "session has already been finalized"}
+
+
 def image_bytes() -> bytes:
     stream = BytesIO()
     Image.new("RGB", (12, 8), color="black").save(stream, format="PNG")

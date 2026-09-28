@@ -11,6 +11,9 @@ from fastapi import FastAPI, File, HTTPException, Response, UploadFile, status
 from PIL import Image, UnidentifiedImageError
 
 from services.api.schemas import (
+    FinalizedItemResponse,
+    FinalizedSessionResponse,
+    FinalizeSessionRequest,
     FrameProcessedResponse,
     HealthResponse,
     SessionCreatedResponse,
@@ -18,6 +21,7 @@ from services.api.schemas import (
 )
 from services.api.sessions import ActiveSession, create_active_session
 from services.api.settings import ServingSettings
+from surgint.decision import ItemContextOverride, SessionContext
 from surgint.model.detector import Detector
 from surgint.model.transform import Transform
 
@@ -139,6 +143,11 @@ def create_app(
             ) from error
 
         with session.lock:
+            if session.decision_support.is_finalized:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="session has already been finalized",
+                )
             with application.state.inference_lock:
                 detections = session.pipeline.predict(frame, score_threshold=0.0)
             session.decision_support.update(detections)
@@ -166,6 +175,63 @@ def create_app(
             frame_count=frame_count,
             detections=response_detections,
         )
+
+    @application.post(
+        "/v1/sessions/{session_id}/finalize",
+        response_model=FinalizedSessionResponse,
+    )
+    def finalize_session(
+        session_id: UUID,
+        request: FinalizeSessionRequest,
+    ) -> FinalizedSessionResponse:
+        with application.state.sessions_lock:
+            session = application.state.sessions.get(session_id)
+        if session is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="session not found",
+            )
+
+        context = SessionContext(
+            workflow_stage=request.workflow_stage,
+            use_state=request.use_state,
+            contamination_state=request.contamination_state,
+        )
+        overrides = {
+            class_id: ItemContextOverride(**override.model_dump())
+            for class_id, override in request.overrides.items()
+        }
+
+        with session.lock:
+            if session.decision_support.is_finalized:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="session has already been finalized",
+                )
+            try:
+                result = session.decision_support.finalize(context, overrides)
+            except ValueError as error:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=str(error),
+                ) from error
+
+        labels = session.pipeline.detector.manifest.labels
+        items = [
+            FinalizedItemResponse(
+                class_id=item.class_id,
+                label=labels[item.class_id],
+                count=item.inventory_item.count,
+                confidence=item.inventory_item.score,
+                outcome=item.decision.outcome,
+                action=item.decision.action,
+                reason=item.decision.reason,
+                matched_rule=item.decision.matched_rule,
+                missing_fields=list(item.decision.missing_fields),
+            )
+            for item in result.items
+        ]
+        return FinalizedSessionResponse(frame_count=result.frames, items=items)
 
     return application
 
