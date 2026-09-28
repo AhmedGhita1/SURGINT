@@ -59,11 +59,16 @@ jobs:
       # repository. the build context admits nothing else, so it is written there.
       - run: python .github/scripts/ci_checkpoint.py models/ci
 
-      - run: docker build -f docker/Dockerfile.api -t surgint:ci --build-arg MODEL_PATH=models/ci .
+      - run: docker build -t surgint:ci --build-arg MODEL_PATH=models/ci .
 
       - name: start the container
         run: |
-          docker run -d --name surgint-ci -p 127.0.0.1:8000:8000 surgint:ci
+          # Standard GitHub runners have no GPU. This override checks the
+          # GPU-capable image's packaging and API without changing its CUDA default.
+          docker run -d --name surgint-ci \
+            -e SURGINT_DEVICE=cpu \
+            -p 127.0.0.1:8000:7860 \
+            surgint:ci
           for _ in $(seq 90); do
             if curl -fsS -m 2 http://127.0.0.1:8000/health/ready > /dev/null; then
               exit 0
