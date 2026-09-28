@@ -31,6 +31,6 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pip install -e .
 
-      - run: ruff check src tests
+      - run: ruff check surgint tests
 
       - run: pytest -q

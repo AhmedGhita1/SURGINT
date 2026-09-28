@@ -41,7 +41,8 @@ line-length = 100
 select = ["E9", "F"]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["surgint*"]
 
 [tool.setuptools.package-data]
 "surgint.ontology" = ["*.owl"]

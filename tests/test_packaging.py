@@ -32,7 +32,7 @@ from surgint.ontology.loader import ONTOLOGY_FILE
 from surgint.policy.loader import POLICY_FILE
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "src" / "surgint"
+SOURCE = ROOT / "surgint"
 PYPROJECT = ROOT / "pyproject.toml"
 
 
@@ -85,7 +85,7 @@ def candidates(module: str, index: dict) -> set:
 
 
 def test_source_imports_are_declared():
-    """every third-party import in src/ resolves to a declared dependency"""
+    """every third-party import in surgint/ resolves to a declared dependency"""
     index = packages_distributions()
     declared = declared_distributions()
 
