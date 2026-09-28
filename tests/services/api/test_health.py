@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -10,6 +11,11 @@ class FakeDetector:
     def __init__(self) -> None:
         self.device = None
         self.evaluating = False
+        self.manifest = SimpleNamespace(
+            input_size=(640, 640),
+            pad_color=114,
+            rescale_factor=1 / 255,
+        )
 
     def to(self, device: str) -> None:
         self.device = device
