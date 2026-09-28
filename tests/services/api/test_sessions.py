@@ -73,6 +73,25 @@ def test_session_creation_requires_a_ready_model() -> None:
     assert response.json() == {"detail": "model is not ready"}
 
 
+def test_session_limit_is_released_by_deletion() -> None:
+    application = create_app(
+        ServingSettings(checkpoint=Path("model"), max_sessions=1),
+        lambda _: FakeDetector(),
+    )
+
+    with TestClient(application) as client:
+        first = client.post("/v1/sessions")
+        assert first.status_code == 201
+
+        response = client.post("/v1/sessions")
+        assert response.status_code == 429
+        assert response.json() == {"detail": "active session limit reached"}
+
+        session_id = UUID(first.json()["session_id"])
+        assert client.delete(f"/v1/sessions/{session_id}").status_code == 204
+        assert client.post("/v1/sessions").status_code == 201
+
+
 def test_unknown_session_returns_not_found() -> None:
     application = create_app(
         ServingSettings(checkpoint=Path("model")),

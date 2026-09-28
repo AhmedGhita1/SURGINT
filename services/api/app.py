@@ -97,9 +97,14 @@ def create_app(
                 detail="model is not ready",
             )
 
-        session_id = uuid4()
-        session = create_active_session(detector, transform)
         with application.state.sessions_lock:
+            if len(application.state.sessions) >= settings.max_sessions:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="active session limit reached",
+                )
+            session_id = uuid4()
+            session = create_active_session(detector, transform)
             application.state.sessions[session_id] = session
         return SessionCreatedResponse(session_id=session_id)
 
