@@ -1,0 +1,13 @@
+*
+!.dockerignore
+!pyproject.toml
+!README.md
+!surgint/
+!surgint/**
+!services/
+!services/**
+!models/
+!models/**
+
+# bytecode from the host python never belongs in the image
+**/__pycache__/
