@@ -1,11 +1,17 @@
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 from uuid import UUID, uuid4
 
+import numpy as np
+import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from services.api.app import create_app
 from services.api.settings import ServingSettings
+from surgint.model import Detections
 
 
 class FakeDetector:
@@ -78,3 +84,68 @@ def test_unknown_session_returns_not_found() -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "session not found"}
+
+
+def test_frame_updates_tracking_session() -> None:
+    application = create_app(
+        ServingSettings(checkpoint=Path("model")),
+        lambda _: FakeDetector(),
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        session = application.state.sessions[session_id]
+        detections = Detections(
+            boxes=np.asarray([[10, 20, 30, 40]], dtype=np.float32),
+            scores=np.asarray([0.9], dtype=np.float32),
+            class_ids=np.asarray([1], dtype=np.int64),
+            track_ids=np.asarray([7], dtype=np.int64),
+        )
+        session.pipeline.predict = Mock(return_value=detections)
+
+        response = client.post(
+            f"/v1/sessions/{session_id}/frames",
+            files={"image": ("frame.png", image_bytes(), "image/png")},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "frame_count": 1,
+            "detections": [
+                {
+                    "track_id": 7,
+                    "class_id": 1,
+                    "label": "forceps",
+                    "score": pytest.approx(0.9),
+                    "box": [10.0, 20.0, 30.0, 40.0],
+                }
+            ],
+        }
+        frame = session.pipeline.predict.call_args.args[0]
+        assert frame.shape == (8, 12, 3)
+        assert session.decision_support.frame_count == 1
+
+
+def test_frame_rejects_invalid_image_without_updating_session() -> None:
+    application = create_app(
+        ServingSettings(checkpoint=Path("model")),
+        lambda _: FakeDetector(),
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        session = application.state.sessions[session_id]
+        response = client.post(
+            f"/v1/sessions/{session_id}/frames",
+            files={"image": ("frame.png", b"not an image", "image/png")},
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "invalid image"}
+        assert session.decision_support.frame_count == 0
+
+
+def image_bytes() -> bytes:
+    stream = BytesIO()
+    Image.new("RGB", (12, 8), color="black").save(stream, format="PNG")
+    return stream.getvalue()

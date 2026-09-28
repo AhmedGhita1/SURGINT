@@ -3,11 +3,19 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Lock
+from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import FastAPI, HTTPException, Response, status
+import numpy as np
+from fastapi import FastAPI, File, HTTPException, Response, UploadFile, status
+from PIL import Image, UnidentifiedImageError
 
-from services.api.schemas import HealthResponse, SessionCreatedResponse
+from services.api.schemas import (
+    FrameProcessedResponse,
+    HealthResponse,
+    SessionCreatedResponse,
+    TrackedDetectionResponse,
+)
 from services.api.sessions import ActiveSession, create_active_session
 from services.api.settings import ServingSettings
 from surgint.model.detector import Detector
@@ -30,6 +38,7 @@ def create_app(
         app.state.transform = None
         app.state.sessions: dict[UUID, ActiveSession] = {}
         app.state.sessions_lock = Lock()
+        app.state.inference_lock = Lock()
 
         if settings.checkpoint is None:
             logger.warning("SURGINT_CHECKPOINT is not set; the API is not ready")
@@ -103,6 +112,60 @@ def create_app(
                 detail="session not found",
             )
         return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    @application.post(
+        "/v1/sessions/{session_id}/frames",
+        response_model=FrameProcessedResponse,
+    )
+    def process_frame(
+        session_id: UUID,
+        image: Annotated[UploadFile, File()],
+    ) -> FrameProcessedResponse:
+        with application.state.sessions_lock:
+            session = application.state.sessions.get(session_id)
+        if session is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="session not found",
+            )
+
+        try:
+            with Image.open(image.file) as uploaded:
+                frame = np.asarray(uploaded.convert("RGB"))
+        except (OSError, UnidentifiedImageError) as error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="invalid image",
+            ) from error
+
+        with session.lock:
+            with application.state.inference_lock:
+                detections = session.pipeline.predict(frame, score_threshold=0.0)
+            session.decision_support.update(detections)
+            frame_count = session.decision_support.frame_count
+
+        labels = session.pipeline.detector.manifest.labels
+        if detections.track_ids is None:
+            raise RuntimeError("tracking pipeline returned detections without track ids")
+        response_detections = [
+            TrackedDetectionResponse(
+                track_id=int(track_id),
+                class_id=int(class_id),
+                label=labels[int(class_id)],
+                score=float(score),
+                box=tuple(float(coordinate) for coordinate in box),
+            )
+            for box, score, class_id, track_id in zip(
+                detections.boxes,
+                detections.scores,
+                detections.class_ids,
+                detections.track_ids,
+            )
+        ]
+        return FrameProcessedResponse(
+            frame_count=frame_count,
+            detections=response_detections,
+        )
 
     return application
 
