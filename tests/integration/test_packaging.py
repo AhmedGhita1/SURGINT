@@ -31,7 +31,7 @@ else:
 from surgint.ontology.loader import ONTOLOGY_FILE
 from surgint.policy.loader import POLICY_FILE
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SOURCES = (ROOT / "services", ROOT / "surgint")
 PYPROJECT = ROOT / "pyproject.toml"
 

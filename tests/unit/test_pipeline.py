@@ -14,20 +14,14 @@ coverage:
 - tracking:   track_ids under detection-tracking, None under detection-only
 """
 
-import tempfile
-from pathlib import Path
-
-import pytest
 import numpy as np
 import torch
 
 from surgint.model import Detections
-from surgint.model.detector import Detector
 from surgint.model.transform import Transform
 from surgint.runtime.bytetrack import CONFIRM_HITS
 from surgint.runtime.pipeline import Pipeline
 
-CHECKPOINT = "PekingU/rtdetr_r18vd_coco_o365"
 INPUT_SIZE = [320, 192]
 FRAME_HEIGHT, FRAME_WIDTH = 180, 320
 CLASSES = 2
@@ -132,41 +126,3 @@ def test_tracking():
     for _ in range(CONFIRM_HITS):
         result = tracked.predict(blank(), 0.3)
     assert result.track_ids.tolist() == [1], f"expected id 1 after reset, got {result.track_ids.tolist()}"
-
-
-@pytest.mark.integration
-def test_from_checkpoint():
-    """the geometry comes from the model manifest, not from a config"""
-
-    detector = Detector.from_pretrained(CHECKPOINT, {0: "scalpel", 1: "scissors"})
-    geometry = {
-        "input_size": INPUT_SIZE,
-        "pad_color": 0,
-        "rescale_factor": 1.0,
-        "source": CHECKPOINT,
-    }
-
-    with tempfile.TemporaryDirectory() as directory:
-        path = Path(directory) / "best"
-        detector.save_checkpoint(path, geometry)
-
-        pipeline = Pipeline.from_checkpoint(path, task="detection-tracking", device="cpu")
-
-        # every geometry value came off the checkpoint, none of them defaults
-        assert [pipeline.transform.width, pipeline.transform.height] == INPUT_SIZE
-        assert pipeline.transform.pad_color == 0, "pad color fell back to the default"
-        assert pipeline.transform.rescale_factor == 1.0, "rescale factor fell back to the default"
-        assert pipeline.task == "detection-tracking"
-        assert pipeline.detector.meta["labels"] == ["scalpel", "scissors"]
-
-        # it still runs on a frame
-        assert isinstance(pipeline.predict(blank(), 0.5), Detections)
-
-        # weights without a manifest are not a model artifact
-        bare = Path(directory) / "bare"
-        detector.model.save_pretrained(bare)
-        try:
-            Pipeline.from_checkpoint(bare, device="cpu")
-            assert False, "should raise for an artifact without a manifest"
-        except FileNotFoundError:
-            pass

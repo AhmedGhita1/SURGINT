@@ -31,7 +31,7 @@ from surgint.engine.trainer import Trainer
 from surgint.model.detector import Detector
 
 # these load a real checkpoint from the hub
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.model
 
 CHECKPOINT = "PekingU/rtdetr_r18vd_coco_o365"
 INPUT_SIZE = [320, 192]

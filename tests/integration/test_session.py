@@ -6,7 +6,7 @@ from surgint.model import Detections
 from surgint.runtime.decision_support import InventoryDecisionSupport
 from surgint.runtime.session import DecisionSupportSession
 
-from .factories import tracked_frame
+from tests.factories import tracked_frame
 
 
 def session():

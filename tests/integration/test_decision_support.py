@@ -4,7 +4,7 @@ from surgint.decision import ItemContext, ItemContextOverride, SessionContext
 from surgint.runtime.decision_support import InventoryDecisionSupport
 from surgint.runtime.inventory import Inventory
 
-from .factories import tracked_frame
+from tests.factories import tracked_frame
 
 
 def post_procedure(**overrides):
