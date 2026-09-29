@@ -1,8 +1,4 @@
-[![CI](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml/badge.svg)](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml)
-[![Python 3.10 | 3.12](https://img.shields.io/badge/Python-3.10%20%7C%203.12-blue)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Hugging Face Space](https://img.shields.io/badge/Hugging%20Face-Space-yellow)](https://huggingface.co/spaces/AhmedGhita/surgint)
-[![Hugging Face Model](https://img.shields.io/badge/Hugging%20Face-Model-yellow)](https://huggingface.co/AhmedGhita/surgint-instruments-rt-detr)
+[![CI](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml/badge.svg)](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml) [![Python 3.10 | 3.12](https://img.shields.io/badge/Python-3.10%20%7C%203.12-blue)](https://www.python.org/downloads/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![Hugging Face Space](https://img.shields.io/badge/Hugging%20Face-Space-yellow)](https://huggingface.co/spaces/AhmedGhita/surgint) [![Hugging Face Model](https://img.shields.io/badge/Hugging%20Face-Model-yellow)](https://huggingface.co/AhmedGhita/surgint-instruments-rt-detr)
 
 # SURGINT Instruments
 

@@ -4,10 +4,6 @@ __pycache__/
 data/
 outputs/
 docs/*
-!docs/design/
-docs/design/*
-!docs/design/adr/
-!docs/design/adr/*.md
 .claude/
 .vscode/
 archive/
