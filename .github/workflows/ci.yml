@@ -102,8 +102,8 @@ jobs:
       packages: write
     env:
       IMAGE_NAME: ghcr.io/ahmedghita1/surgint-instruments
-      WANDB_API_KEY: ${{ secrets.WANDB_API_KEY }}
-      WANDB_ARTIFACT: ${{ vars.WANDB_ARTIFACT }}
+      HF_MODEL_ID: AhmedGhita/surgint-instruments-rt-detr
+      HF_MODEL_REVISION: ${{ vars.HF_MODEL_REVISION }}
     steps:
       - uses: actions/checkout@v4
 
@@ -121,12 +121,11 @@ jobs:
 
       - name: build and publish the production image
         run: |
-          test -n "$WANDB_API_KEY"
-          test -n "$WANDB_ARTIFACT"
+          test -n "$HF_MODEL_REVISION"
           version="${GITHUB_REF_NAME#v}"
           docker build --target production \
-            --secret id=WANDB_API_KEY,env=WANDB_API_KEY \
-            --build-arg "WANDB_ARTIFACT=$WANDB_ARTIFACT" \
+            --build-arg "HF_MODEL_ID=$HF_MODEL_ID" \
+            --build-arg "HF_MODEL_REVISION=$HF_MODEL_REVISION" \
             --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
             --tag "$IMAGE_NAME:$version" \
             --tag "$IMAGE_NAME:latest" .

@@ -43,20 +43,19 @@ COPY --from=ci-model --chown=surgint:surgint /model/ /app/model/
 RUN python -c "from surgint.artifacts import ModelManifest; ModelManifest.load('/app/model')"
 
 
-# GitHub Actions provides WANDB_API_KEY as a BuildKit secret. Only the downloaded
-# checkpoint crosses into the production image; W&B and its credential do not.
-FROM python:3.12.14-slim-bookworm AS registry-model
+# Release models are public. The full Hub commit SHA makes this input immutable.
+FROM python:3.12.14-slim-bookworm AS release-model
 
-ARG WANDB_ARTIFACT
+ARG HF_MODEL_ID
+ARG HF_MODEL_REVISION
 
-RUN python -m pip install --no-cache-dir wandb==0.30.0
-RUN --mount=type=secret,id=WANDB_API_KEY,mode=0444,required=true \
-    test -n "${WANDB_ARTIFACT}" \
-    && WANDB_API_KEY="$(cat /run/secrets/WANDB_API_KEY)" \
-       WANDB_ARTIFACT="${WANDB_ARTIFACT}" \
-       python -c "import os, wandb; wandb.Api().artifact(os.environ['WANDB_ARTIFACT']).download(root='/model')"
+RUN python -m pip install --no-cache-dir huggingface-hub==0.36.0
+RUN test -n "${HF_MODEL_ID}" \
+    && test -n "${HF_MODEL_REVISION}" \
+    && python -c "import os, re; from huggingface_hub import snapshot_download; revision = os.environ['HF_MODEL_REVISION']; assert re.fullmatch(r'[0-9a-f]{40}', revision), 'HF_MODEL_REVISION must be a full commit SHA'; snapshot_download(repo_id=os.environ['HF_MODEL_ID'], revision=revision, local_dir='/model', allow_patterns=['config.json', 'model.safetensors', 'manifest.yaml'])" \
+    && rm -rf /model/.cache
 
 
 FROM runtime AS production
-COPY --from=registry-model --chown=surgint:surgint /model/ /app/model/
+COPY --from=release-model --chown=surgint:surgint /model/ /app/model/
 RUN python -c "from surgint.artifacts import ModelManifest; ModelManifest.load('/app/model')"
