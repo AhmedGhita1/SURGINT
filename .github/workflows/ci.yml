@@ -33,9 +33,9 @@ jobs:
 
       - run: ruff check services surgint tests
 
-      - run: pytest -q tests/unit
-      - run: pytest -q tests/integration
-      - run: pytest -q tests/model
+      - run: python -m pytest -q tests/unit
+      - run: python -m pytest -q tests/integration
+      - run: python -m pytest -q tests/model
 
   image:
     runs-on: ubuntu-latest
@@ -89,7 +89,7 @@ jobs:
             *) echo "a source copy in the image shadows the installed package"; exit 1 ;;
           esac
 
-      - run: docker/smoke.sh
+      - run: bash docker/smoke.sh
 
       - if: always()
         run: docker logs surgint-ci
