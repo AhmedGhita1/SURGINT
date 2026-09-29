@@ -5,8 +5,9 @@ from tempfile import NamedTemporaryFile
 
 import imageio.v2 as imageio
 import numpy as np
+import pytest
 
-from services.api.video import decode_sampled_frames
+from services.api.video import InvalidVideoError, decode_sampled_frames
 
 
 def test_video_bytes_are_sampled_at_the_requested_rate() -> None:
@@ -28,3 +29,8 @@ def test_video_bytes_are_sampled_at_the_requested_rate() -> None:
 
     assert len(frames) == 3
     assert all(frame.shape == (32, 48, 3) for frame in frames)
+
+
+def test_invalid_video_bytes_raise_the_public_decoder_error() -> None:
+    with pytest.raises(InvalidVideoError, match="video could not be decoded"):
+        list(decode_sampled_frames(b"not a video", sample_fps=1.0))

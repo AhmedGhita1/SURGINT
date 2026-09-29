@@ -12,6 +12,7 @@ from PIL import Image
 
 from services.api.app import create_app
 from services.api.settings import ServingSettings
+from services.api.video import InvalidVideoError
 from surgint.model import Detections
 
 
@@ -224,6 +225,49 @@ def test_video_upload_limit_is_checked_before_decoding() -> None:
     decoder.assert_not_called()
 
 
+def test_empty_video_is_rejected_before_decoding() -> None:
+    decoder = Mock()
+    application = create_app(
+        ServingSettings(checkpoint=Path("model")),
+        lambda _: FakeDetector(),
+        decoder,
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        response = client.post(
+            f"/v1/sessions/{session_id}/video",
+            files={"video": ("session.mp4", b"", "video/mp4")},
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "video is empty"}
+        assert application.state.sessions[session_id].decision_support.frame_count == 0
+    decoder.assert_not_called()
+
+
+def test_invalid_video_leaves_the_session_empty() -> None:
+    def reject_video(_contents: bytes, _sample_fps: float):
+        raise InvalidVideoError("video could not be decoded")
+
+    application = create_app(
+        ServingSettings(checkpoint=Path("model")),
+        lambda _: FakeDetector(),
+        reject_video,
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        response = client.post(
+            f"/v1/sessions/{session_id}/video",
+            files={"video": ("session.mp4", b"invalid-video", "video/mp4")},
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "video could not be decoded"}
+        assert application.state.sessions[session_id].decision_support.frame_count == 0
+
+
 def test_video_sample_limit_leaves_the_session_empty() -> None:
     application = create_app(
         ServingSettings(
@@ -247,6 +291,37 @@ def test_video_sample_limit_leaves_the_session_empty() -> None:
         assert response.status_code == 413
         assert response.json() == {"detail": "video exceeds the sampled-frame limit"}
         assert application.state.sessions[session_id].decision_support.frame_count == 0
+
+
+def test_video_requires_an_empty_open_session() -> None:
+    decoder = Mock()
+    application = create_app(
+        ServingSettings(checkpoint=Path("model")),
+        lambda _: FakeDetector(),
+        decoder,
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        session = application.state.sessions[session_id]
+        session.decision_support.update(
+            Detections(
+                boxes=np.empty((0, 4), dtype=np.float32),
+                scores=np.empty(0, dtype=np.float32),
+                class_ids=np.empty(0, dtype=np.int64),
+                track_ids=np.empty(0, dtype=np.int64),
+            )
+        )
+
+        response = client.post(
+            f"/v1/sessions/{session_id}/video",
+            files={"video": ("session.mp4", b"complete-video", "video/mp4")},
+        )
+
+        assert response.status_code == 409
+        assert response.json() == {"detail": "session already contains frames"}
+        assert session.decision_support.frame_count == 1
+    decoder.assert_not_called()
 
 
 def test_session_finalization_returns_inventory_decisions() -> None:
@@ -303,10 +378,12 @@ def test_session_finalization_returns_inventory_decisions() -> None:
         assert response.json() == {"detail": "session has already been finalized"}
 
 
-def test_finalized_session_rejects_more_frames() -> None:
+def test_finalized_session_rejects_more_input() -> None:
+    decoder = Mock()
     application = create_app(
         ServingSettings(checkpoint=Path("model")),
         lambda _: FakeDetector(),
+        decoder,
     )
 
     with TestClient(application) as client:
@@ -323,6 +400,14 @@ def test_finalized_session_rejects_more_frames() -> None:
         )
         assert response.status_code == 409
         assert response.json() == {"detail": "session has already been finalized"}
+
+        response = client.post(
+            f"/v1/sessions/{session_id}/video",
+            files={"video": ("session.mp4", b"complete-video", "video/mp4")},
+        )
+        assert response.status_code == 409
+        assert response.json() == {"detail": "session has already been finalized"}
+    decoder.assert_not_called()
 
 
 def image_bytes() -> bytes:
