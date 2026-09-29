@@ -26,20 +26,6 @@ docker run --rm --gpus all -p 7860:7860 \
 
 Open <http://localhost:7860> after the container reports healthy.
 
-### Release image provenance
-
-Versioned images are published by GitHub Actions only from a `v*` tag that matches
-the version in `pyproject.toml`. The production build downloads the configured W&B
-model artifact, validates its model manifest and weights digest, and labels the image
-with this source repository. Prefer the versioned tag over `latest`.
-
-Record the exact registry digest used for a deployment:
-
-```bash
-docker image inspect \
-  ghcr.io/ahmedghita1/surgint-instruments:1.0.0 \
-  --format '{{index .RepoDigests 0}}'
-```
 
 
 ## Development
