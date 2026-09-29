@@ -3,6 +3,7 @@
 !Dockerfile
 !pyproject.toml
 !README.md
+!LICENSE
 !surgint/
 !surgint/**
 !services/

@@ -24,14 +24,40 @@ docker run --rm --gpus all -p 7860:7860 \
   ghcr.io/ahmedghita1/surgint-instruments:1.0.0
 ```
 
+Open <http://localhost:7860> after the container reports healthy.
+
+### Release image provenance
+
+Versioned images are published by GitHub Actions only from a `v*` tag that matches
+the version in `pyproject.toml`. The production build downloads the configured W&B
+model artifact, validates its model manifest and weights digest, and labels the image
+with this source repository. Prefer the versioned tag over `latest`.
+
+Record the exact registry digest used for a deployment:
+
+```bash
+docker image inspect \
+  ghcr.io/ahmedghita1/surgint-instruments:1.0.0 \
+  --format '{{index .RepoDigests 0}}'
+```
+
 
 ## Development
 
-SURGINT Instruments supports Python 3.10 and later. An editable development installation contains the model, serving, training, evaluation, rendering, and test dependencies:
+SURGINT Instruments supports Python 3.10 and 3.12. An editable development installation contains the model, serving, training, evaluation, rendering, and test dependencies:
 
 ```bash
 python -m pip install -e ".[dev,render,serving,training]"
 ```
+
+Run the API locally with a validated SURGINT checkpoint:
+
+```bash
+SURGINT_CHECKPOINT=/path/to/checkpoint SURGINT_DEVICE=cpu \
+  python -m uvicorn services.api.app:app --host 127.0.0.1 --port 7860
+```
+
+Then open <http://127.0.0.1:7860>.
 
 ## Training and evaluation
 

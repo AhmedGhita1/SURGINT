@@ -14,9 +14,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN useradd --create-home --uid 1000 surgint
 
-# nstall the serving package before copying the model so a model promotion
+# Install the serving package before copying the model so a model promotion
 # does not invalidate the dependency layer.
-COPY pyproject.toml README.md /src/
+COPY pyproject.toml README.md LICENSE /src/
 COPY surgint/ /src/surgint/
 COPY services/ /src/services/
 RUN python -m pip install --retries 10 --timeout 120 "/src[serving]" \
@@ -43,7 +43,7 @@ COPY --from=ci-model --chown=surgint:surgint /model/ /app/model/
 RUN python -c "from surgint.artifacts import ModelManifest; ModelManifest.load('/app/model')"
 
 
-# Hugging Face exposes WANDB_API_KEY as a BuildKit secret. Only the downloaded
+# GitHub Actions provides WANDB_API_KEY as a BuildKit secret. Only the downloaded
 # checkpoint crosses into the production image; W&B and its credential do not.
 FROM python:3.12.14-slim-bookworm AS registry-model
 
