@@ -1,12 +1,8 @@
----
-title: SURGINT Instruments
-sdk: docker
-app_port: 7860
----
+[![CI](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml/badge.svg)](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml) [![Hugging Face Space](https://img.shields.io/badge/Hugging%20Face-Space-yellow)](https://huggingface.co/spaces/AhmedGhita/surgint)
 
 # SURGINT Instruments
 
-[![CI](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml/badge.svg)](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml)
+
 
 *surgint-instruments is part of the surgical intelligence (SURGINT) family of projects.*
 
@@ -15,36 +11,18 @@ app_port: 7860
 
 > **Research demonstration only.** SURGINT Instruments has not been clinically validated, and must not be used for clinical decisions, patient care, or safety-critical instrument accounting.
 
-![SURGINT Instruments architecture](docs/SURGINT-architecture-v2.png)
-
-## Demo
-
-The public GPU demo is available on [Hugging Face Spaces](https://huggingface.co/spaces/AhmedGhita/surgint).
-
+![SURGINT Instruments architecture](docs/SURGINT-architecture-v2.svg)
 
 ## Run with Docker
 
-The production image is GPU-only. A local deployment requires Docker with BuildKit, the NVIDIA Container Toolkit, an NVIDIA driver compatible with CUDA 12.1, and a W&B API key that can read the release artifact.
-
-The following commands build the image from the immutable model artifact used by the hosted demo:
-
-```bash
-export WANDB_API_KEY="<your W&B API key>"
-
-docker build --target production \
-  --secret id=WANDB_API_KEY,env=WANDB_API_KEY \
-  --build-arg WANDB_ARTIFACT=YOUR_WANDB_ENTITY/YOUR_WANDB_PROJECT/surgint-detector:v0 \
-  -t surgint-instruments:1.0.0 .
-```
-
-The model is downloaded once during the image build and stored inside the final image. The W&B credential is exposed only as a build secret; it is not copied into the image.
+Running the Docker image requires Docker, the NVIDIA Container Toolkit, and an NVIDIA driver
+compatible with CUDA 12.1.
 
 ```bash
-docker run --rm --gpus all -p 7860:7860 surgint-instruments:1.0.0
+docker pull ghcr.io/ahmedghita1/surgint-instruments:1.0.0
+docker run --rm --gpus all -p 7860:7860 \
+  ghcr.io/ahmedghita1/surgint-instruments:1.0.0
 ```
-
-The browser interface is then available at [http://localhost:7860](http://localhost:7860), and the generated OpenAPI documentation is available at [http://localhost:7860/docs](http://localhost:7860/docs).
-
 
 
 ## Development
