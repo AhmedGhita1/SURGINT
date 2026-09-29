@@ -47,3 +47,13 @@ def test_health_is_not_ready_without_checkpoint() -> None:
         response = client.get("/health/ready")
         assert response.status_code == 503
         assert response.json() == {"status": "not_ready"}
+
+
+def test_console_is_served_from_the_package() -> None:
+    """the operator page ships with the package, not beside the source tree"""
+    settings = ServingSettings(checkpoint=None)
+
+    with TestClient(create_app(settings)) as client:
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "INVENTORY" in response.text

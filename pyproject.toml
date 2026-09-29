@@ -59,5 +59,6 @@ where = ["."]
 include = ["services*", "surgint*"]
 
 [tool.setuptools.package-data]
+"services.api" = ["static/*.html"]
 "surgint.ontology" = ["*.owl"]
 "surgint.policy" = ["*.yaml"]

@@ -29,6 +29,7 @@ status() { curl -s -o /dev/null -w '%{http_code}' -m "$1" "${@:2}"; }
 
 expect "GET /health/live" "$(status 10 "$BASE/health/live")" 200
 expect "GET /health/ready" "$(status 10 "$BASE/health/ready")" 200
+expect "GET /" "$(status 10 "$BASE/")" 200
 
 session=$(curl -s -m 30 -X POST "$BASE/v1/sessions" \
     | "$PYTHON" -c 'import json,sys; print(json.load(sys.stdin)["session_id"])')
@@ -43,8 +44,9 @@ frames=$(curl -s -m 300 -w '\n%{http_code}' -X POST \
 expect "POST frames" "$(echo "$frames" | tail -1)" 200
 echo "  $(echo "$frames" | head -1)"
 
-# unused, not-regulated and non-sharp is the one combination the demonstration
-# policy covers without an item lookup, so a rule has to match
+# a blank frame yields no detections, so finalize returns an empty inventory.
+# this checks the endpoint and the session teardown, not a policy decision;
+# the decision path is covered by the integration tests
 finalized=$(curl -s -m 60 -w '\n%{http_code}' -X POST \
     -H 'Content-Type: application/json' \
     -d '{"workflow_stage":"post-procedure-clearing","use_state":"unused","contamination_state":"not-regulated"}' \

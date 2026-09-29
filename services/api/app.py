@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 
 from services.api.schemas import (
@@ -26,6 +27,8 @@ from surgint.model.detector import Detector
 from surgint.model.transform import Transform
 
 logger = logging.getLogger(__name__)
+
+CONSOLE = Path(__file__).parent / "static" / "index.html"
 
 
 def create_app(
@@ -71,6 +74,11 @@ def create_app(
         app.state.transform = None
 
     application = FastAPI(title="Surgint API", version="1", lifespan=lifespan)
+
+    @application.get("/", include_in_schema=False)
+    def console() -> FileResponse:
+        """Serve the page an operator runs a session from."""
+        return FileResponse(CONSOLE)
 
     @application.get("/health/live", response_model=HealthResponse)
     def live() -> HealthResponse:
