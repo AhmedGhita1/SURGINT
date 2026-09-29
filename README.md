@@ -35,22 +35,22 @@ python -m pip install -e ".[dev,render,serving,training]"
 
 ## Training and evaluation
 
-Training and evaluation are offline workflows. They consume versioned datasets and produce reproducible run directories under `outputs/runs`; they do not depend on production traffic. Production observations may become a future data source only after a separate collection, curation, labeling, and dataset-versioning process.
+Training and evaluation are offline workflows. They consume versioned datasets and produce reproducible run directories under `outputs/runs`.
 
-The configuration files under `configs/` define the dataset, model revision, hyperparameters, splits, and metrics. Typical entry points are:
+Typical entry points:
 
 ```bash
-# Local training
+# local training
 python -m pipelines.train --config configs/train.yaml
 
-# Training tracked in W&B, with the best checkpoint logged as a candidate artifact
+# training tracked in W&B, with the best checkpoint logged as a candidate artifact
 python -m pipelines.train --config configs/train.yaml \
   --wandb-project YOUR_WANDB_PROJECT --wandb-entity YOUR_WANDB_ENTITY
 
-# Detection evaluation
+# detection evaluation
 python -m pipelines.evaluate outputs/runs/<run-id>/best --config configs/eval.yaml
 
-# End-to-end detection, tracking, and inventory evaluation
+# end-to-end detection, tracking, and inventory evaluation
 python -m pipelines.evaluate outputs/runs/<run-id>/best --config configs/eval_sessions.yaml
 ```
 
