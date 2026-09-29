@@ -9,12 +9,25 @@ PYTHON=${PYTHON:-python}
 failures=0
 
 frame=$(mktemp -t surgint-frame-XXXXXX.jpg)
-trap 'rm -f "$frame"' EXIT
-"$PYTHON" - "$frame" <<'PY'
+video=$(mktemp -t surgint-video-XXXXXX.gif)
+trap 'rm -f "$frame" "$video"' EXIT
+"$PYTHON" - "$frame" "$video" <<'PY'
 import sys
 from PIL import Image
 
 Image.new("RGB", (320, 192), (114, 114, 114)).save(sys.argv[1], "JPEG")
+frames = [
+    Image.new("RGB", (320, 192), (114, 114, 114)),
+    Image.new("RGB", (320, 192), (115, 114, 114)),
+]
+frames[0].save(
+    sys.argv[2],
+    "GIF",
+    save_all=True,
+    append_images=frames[1:],
+    duration=1000,
+    loop=0,
+)
 PY
 
 expect() {
@@ -56,6 +69,19 @@ echo "  $(echo "$finalized" | head -1)"
 
 expect "DELETE session" "$(status 30 -X DELETE "$BASE/v1/sessions/$session")" 204
 expect "DELETE again" "$(status 30 -X DELETE "$BASE/v1/sessions/$session")" 404
+
+video_session=$(curl -s -m 30 -X POST "$BASE/v1/sessions" \
+    | "$PYTHON" -c 'import json,sys; print(json.load(sys.stdin)["session_id"])')
+if [ -z "$video_session" ]; then
+    echo "POST /v1/sessions returned no video session id"
+    exit 1
+fi
+
+processed=$(curl -s -m 300 -w '\n%{http_code}' -X POST \
+    -F "video=@$video;type=image/gif" "$BASE/v1/sessions/$video_session/video")
+expect "POST video" "$(echo "$processed" | tail -1)" 200
+echo "  $(echo "$processed" | head -1)"
+expect "DELETE video session" "$(status 30 -X DELETE "$BASE/v1/sessions/$video_session")" 204
 
 if [ "$failures" -ne 0 ]; then
     echo "$failures check(s) failed"

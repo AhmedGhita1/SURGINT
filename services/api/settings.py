@@ -12,11 +12,18 @@ class ServingSettings:
     device: str = "cpu"
     max_sessions: int = 8
     max_video_bytes: int = 256 * 1024 * 1024
+    max_video_frames: int = 300
     video_batch_size: int = 4
     video_sample_fps: float = 1.0
+    nms_iou: float = 0.7
 
     def __post_init__(self) -> None:
-        for name in ("max_sessions", "max_video_bytes", "video_batch_size"):
+        for name in (
+            "max_sessions",
+            "max_video_bytes",
+            "max_video_frames",
+            "video_batch_size",
+        ):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError(f"{name} must be a positive integer")
@@ -27,6 +34,13 @@ class ServingSettings:
             or self.video_sample_fps <= 0
         ):
             raise ValueError("video_sample_fps must be a positive finite number")
+        if (
+            isinstance(self.nms_iou, bool)
+            or not isinstance(self.nms_iou, (int, float))
+            or not math.isfinite(self.nms_iou)
+            or not 0 < self.nms_iou <= 1
+        ):
+            raise ValueError("nms_iou must be in (0, 1]")
 
     @classmethod
     def from_environment(cls) -> "ServingSettings":
@@ -36,6 +50,8 @@ class ServingSettings:
             device=os.getenv("SURGINT_DEVICE", "cpu"),
             max_sessions=int(os.getenv("SURGINT_MAX_SESSIONS", "8")),
             max_video_bytes=int(os.getenv("SURGINT_MAX_VIDEO_BYTES", str(256 * 1024 * 1024))),
+            max_video_frames=int(os.getenv("SURGINT_MAX_VIDEO_FRAMES", "300")),
             video_batch_size=int(os.getenv("SURGINT_VIDEO_BATCH_SIZE", "4")),
             video_sample_fps=float(os.getenv("SURGINT_VIDEO_SAMPLE_FPS", "1.0")),
+            nms_iou=float(os.getenv("SURGINT_NMS_IOU", "0.7")),
         )

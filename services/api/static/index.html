@@ -74,6 +74,13 @@
     letter-spacing: 0.06em;
   }
 
+  .notice {
+    margin: -10px 0 0;
+    color: #f5c76b;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
   .bar {
     height: 10px;
     border-radius: 5px;
@@ -188,6 +195,9 @@
 
   <section class="panel">
     <h1>INVENTORY</h1>
+    <p class="notice">
+      Research demonstration only. Not a medical device and not for clinical decisions.
+    </p>
     <div class="bar" id="bar"><span id="fill"></span></div>
 
     <div class="controls">
@@ -405,6 +415,7 @@ async function runCamera(video) {
 async function start(video, run) {
   elements.placeholder.style.display = "none";
   elements.camera.disabled = true;
+  elements.file.disabled = true;
   elements.finalize.disabled = false;
   elements.stop.disabled = false;
   elements.results.innerHTML = "";
@@ -423,6 +434,7 @@ async function start(video, run) {
       session = null;
     }
     elements.camera.disabled = false;
+    elements.file.disabled = false;
     elements.finalize.disabled = true;
     elements.stop.disabled = true;
   }
@@ -473,6 +485,7 @@ elements.stop.addEventListener("click", async () => {
     session = null;
   }
   elements.camera.disabled = false;
+  elements.file.disabled = false;
   elements.finalize.disabled = true;
   elements.stop.disabled = true;
   status("session discarded");
@@ -510,6 +523,7 @@ elements.finalize.addEventListener("click", async () => {
   await fetch(apiUrl(`/v1/sessions/${session}`), { method: "DELETE" });
   session = null;
   elements.camera.disabled = false;
+  elements.file.disabled = false;
   elements.stop.disabled = true;
 });
 
@@ -564,7 +578,10 @@ function render(finalized) {
 window.addEventListener("beforeunload", () => {
   release();
   if (session) {
-    navigator.sendBeacon(apiUrl(`/v1/sessions/${session}`));
+    fetch(apiUrl(`/v1/sessions/${session}`), {
+      method: "DELETE",
+      keepalive: true,
+    });
   }
 });
 </script>

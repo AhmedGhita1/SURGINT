@@ -54,6 +54,7 @@ def test_session_can_be_created_and_deleted() -> None:
         session_id = UUID(response.json()["session_id"])
         session = application.state.sessions[session_id]
         assert session.pipeline.tracker is not None
+        assert session.pipeline.nms_iou == 0.7
         assert session.decision_support.frame_count == 0
 
         second_response = client.post("/v1/sessions")
@@ -221,6 +222,31 @@ def test_video_upload_limit_is_checked_before_decoding() -> None:
     assert response.status_code == 413
     assert response.json() == {"detail": "video exceeds the upload limit"}
     decoder.assert_not_called()
+
+
+def test_video_sample_limit_leaves_the_session_empty() -> None:
+    application = create_app(
+        ServingSettings(
+            checkpoint=Path("model"),
+            max_video_frames=2,
+            video_batch_size=4,
+        ),
+        lambda _: FakeDetector(),
+        lambda _contents, _sample_fps: iter(
+            [np.zeros((8, 12, 3), dtype=np.uint8) for _ in range(3)]
+        ),
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        response = client.post(
+            f"/v1/sessions/{session_id}/video",
+            files={"video": ("session.mp4", b"complete-video", "video/mp4")},
+        )
+
+        assert response.status_code == 413
+        assert response.json() == {"detail": "video exceeds the sampled-frame limit"}
+        assert application.state.sessions[session_id].decision_support.frame_count == 0
 
 
 def test_session_finalization_returns_inventory_decisions() -> None:

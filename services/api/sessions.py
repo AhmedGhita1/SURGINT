@@ -17,7 +17,11 @@ class ActiveSession:
     lock: Lock = field(default_factory=Lock, repr=False)
 
 
-def create_active_session(detector: Detector, transform: Transform) -> ActiveSession:
+def create_active_session(
+    detector: Detector,
+    transform: Transform,
+    nms_iou: float = 0.7,
+) -> ActiveSession:
     """Create isolated tracking and decision state around a shared model."""
     if detector.manifest is None:
         raise ValueError("the loaded detector has no model manifest")
@@ -31,6 +35,7 @@ def create_active_session(detector: Detector, transform: Transform) -> ActiveSes
             detector=detector,
             transform=transform,
             task="detection-tracking",
+            nms_iou=nms_iou,
         ),
         decision_support=DecisionSupportSession(support),
     )

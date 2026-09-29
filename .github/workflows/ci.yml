@@ -95,7 +95,7 @@ jobs:
         run: docker logs surgint-ci
 
   deploy-hf:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev/prod-hf'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [test, image]
     runs-on: ubuntu-latest
     permissions:
@@ -111,4 +111,4 @@ jobs:
           hf_token: ${{ secrets.HF_TOKEN }}
           repo_type: space
           space_sdk: docker
-          private: true
+          private: false

@@ -116,7 +116,7 @@ def create_app(
                     detail="active session limit reached",
                 )
             session_id = uuid4()
-            session = create_active_session(detector, transform)
+            session = create_active_session(detector, transform, settings.nms_iou)
             application.state.sessions[session_id] = session
         return SessionCreatedResponse(session_id=session_id)
 
@@ -233,8 +233,12 @@ def create_app(
                     detail="session already contains frames",
                 )
 
-            working = create_active_session(session.pipeline.detector, session.pipeline.transform)
-            batch = []
+            working = create_active_session(
+                session.pipeline.detector,
+                session.pipeline.transform,
+                settings.nms_iou,
+            )
+            batch: list[np.ndarray] = []
 
             def process_batch() -> None:
                 with application.state.inference_lock:
@@ -244,7 +248,14 @@ def create_app(
                 batch.clear()
 
             try:
+                sampled_frames = 0
                 for frame in video_decoder(contents, settings.video_sample_fps):
+                    sampled_frames += 1
+                    if sampled_frames > settings.max_video_frames:
+                        raise HTTPException(
+                            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                            detail="video exceeds the sampled-frame limit",
+                        )
                     batch.append(frame)
                     if len(batch) == settings.video_batch_size:
                         process_batch()
