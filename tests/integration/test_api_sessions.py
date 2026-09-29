@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 import numpy as np
 import pytest
+import torch
 from fastapi.testclient import TestClient
 from PIL import Image
 
@@ -23,12 +24,21 @@ class FakeDetector:
             rescale_factor=1 / 255,
             weights_sha256="sha256:" + "a" * 64,
         )
+        self.batch_sizes = []
 
     def to(self, device: str) -> None:
         pass
 
     def eval(self) -> None:
         pass
+
+    def predict(self, pixel_values):
+        batch_size = len(pixel_values)
+        self.batch_sizes.append(batch_size)
+        logits = torch.full((batch_size, 1, 2), -10.0)
+        logits[:, :, 0] = 10.0
+        boxes = torch.tensor([[[0.5, 0.5, 0.25, 0.25]]], dtype=torch.float32)
+        return logits, boxes.repeat(batch_size, 1, 1)
 
 
 def test_session_can_be_created_and_deleted() -> None:
@@ -162,6 +172,55 @@ def test_frame_rejects_invalid_image_without_updating_session() -> None:
         assert response.status_code == 400
         assert response.json() == {"detail": "invalid image"}
         assert session.decision_support.frame_count == 0
+
+
+def test_video_is_uploaded_once_and_inferred_in_batches() -> None:
+    detector = FakeDetector()
+    decoded_frames = [np.zeros((8, 12, 3), dtype=np.uint8) for _ in range(5)]
+    decoded_uploads = []
+
+    def decode(contents: bytes, sample_fps: float):
+        decoded_uploads.append((contents, sample_fps))
+        return iter(decoded_frames)
+
+    application = create_app(
+        ServingSettings(checkpoint=Path("model"), video_batch_size=2),
+        lambda _: detector,
+        decode,
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        response = client.post(
+            f"/v1/sessions/{session_id}/video",
+            files={"video": ("session.mp4", b"complete-video", "video/mp4")},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"frame_count": 5}
+        assert decoded_uploads == [(b"complete-video", 1.0)]
+        assert detector.batch_sizes == [2, 2, 1]
+        assert application.state.sessions[session_id].decision_support.frame_count == 5
+
+
+def test_video_upload_limit_is_checked_before_decoding() -> None:
+    decoder = Mock()
+    application = create_app(
+        ServingSettings(checkpoint=Path("model"), max_video_bytes=4),
+        lambda _: FakeDetector(),
+        decoder,
+    )
+
+    with TestClient(application) as client:
+        session_id = UUID(client.post("/v1/sessions").json()["session_id"])
+        response = client.post(
+            f"/v1/sessions/{session_id}/video",
+            files={"video": ("session.mp4", b"12345", "video/mp4")},
+        )
+
+    assert response.status_code == 413
+    assert response.json() == {"detail": "video exceeds the upload limit"}
+    decoder.assert_not_called()
 
 
 def test_session_finalization_returns_inventory_decisions() -> None:

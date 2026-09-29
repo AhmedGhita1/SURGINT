@@ -37,11 +37,12 @@ class StubDetector:
 
     def predict(self, pixel_values):
         assert pixel_values.dim() == 4, "the model always takes a batch"
-        assert len(pixel_values) == 1, "a frame is a batch of one"
 
-        logits = torch.full((1, len(self.boxes), CLASSES), -10.0)
+        batch_size = len(pixel_values)
+        logits = torch.full((batch_size, len(self.boxes), CLASSES), -10.0)
         logits[:, :, self.class_id] = torch.logit(torch.tensor(self.score))
-        return logits, torch.tensor(self.boxes, dtype=torch.float32).unsqueeze(0)
+        boxes = torch.tensor(self.boxes, dtype=torch.float32).unsqueeze(0)
+        return logits, boxes.repeat(batch_size, 1, 1)
 
 
 def blank() -> np.ndarray:
@@ -126,3 +127,15 @@ def test_tracking():
     for _ in range(CONFIRM_HITS):
         result = tracked.predict(blank(), 0.3)
     assert result.track_ids.tolist() == [1], f"expected id 1 after reset, got {result.track_ids.tolist()}"
+
+
+def test_predict_batch_runs_one_forward_pass_and_tracks_in_order():
+    transform = Transform(INPUT_SIZE)
+    detector = StubDetector(np.array([[0.5, 0.5, 0.2, 0.2]], dtype=np.float32))
+    pipeline = Pipeline(detector, transform, "detection-tracking")
+
+    results = pipeline.predict_batch([blank() for _ in range(CONFIRM_HITS)], 0.0)
+
+    assert len(results) == CONFIRM_HITS
+    assert all(len(result.boxes) == 0 for result in results[:-1])
+    assert results[-1].track_ids.tolist() == [1]

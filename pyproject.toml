@@ -37,6 +37,7 @@ training = [
 ]
 serving = [
     "fastapi==0.141.1",
+    "imageio[ffmpeg]==2.36.0",
     "pydantic==2.13.5",
     "python-multipart==0.0.32",
     "uvicorn==0.53.0",

@@ -59,3 +59,5 @@ def test_console_is_served_from_the_package() -> None:
         assert "INVENTORY" in response.text
         assert 'get("__sign")' in response.text
         assert 'fetch(apiUrl("/v1/sessions")' in response.text
+        assert "sessions/${session}/video" in response.text
+        assert "FRAME_STEP" not in response.text

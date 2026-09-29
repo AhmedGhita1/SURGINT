@@ -25,6 +25,10 @@ class FrameProcessedResponse(BaseModel):
     detections: list[TrackedDetectionResponse]
 
 
+class VideoProcessedResponse(BaseModel):
+    frame_count: int
+
+
 class ItemContextOverrideRequest(BaseModel):
     product_id: str | None = None
     lifecycle: Literal["reusable", "single-use"] | None = None

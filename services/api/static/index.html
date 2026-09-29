@@ -239,10 +239,6 @@ const ACTION_COLORS = {
   "facility-general-waste": "#3dcd8c",
 };
 
-// one frame in FRAME_STEP seconds of a recorded video. the model runs one
-// frame at a time, so a smaller step is a longer session, not a faster one
-const FRAME_STEP = 1.0;
-
 const canvas = document.getElementById("stage");
 const context = canvas.getContext("2d");
 const capture = document.createElement("canvas");
@@ -321,6 +317,37 @@ async function postFrame(video) {
   return response.json();
 }
 
+function postVideo(file) {
+  const body = new FormData();
+  body.append("video", file, file.name);
+
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", apiUrl(`/v1/sessions/${session}/video`));
+    request.responseType = "json";
+
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        progress((event.loaded / event.total) * 0.35);
+        status(`uploading video · ${Math.round(event.loaded / event.total * 100)}%`);
+      }
+    });
+    request.upload.addEventListener("load", () => {
+      progress(0.35);
+      status("upload complete · processing sampled frames on the GPU...");
+    });
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve(request.response);
+      } else {
+        reject(new Error(request.response?.detail || `video rejected (${request.status})`));
+      }
+    });
+    request.addEventListener("error", () => reject(new Error("video upload failed")));
+    request.send(body);
+  });
+}
+
 function draw(video, detections) {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -350,26 +377,19 @@ function draw(video, detections) {
   }
 }
 
-function seek(video, time) {
-  return new Promise((resolve) => {
-    video.addEventListener("seeked", resolve, { once: true });
-    video.currentTime = time;
-  });
-}
+async function runVideo(file, video) {
+  elements.finalize.disabled = true;
+  draw(video, []);
 
-async function runVideo(video) {
-  const duration = video.duration;
-  for (let time = 0; running && time < duration; time += FRAME_STEP) {
-    await seek(video, time);
-    const result = await postFrame(video);
-    frames = result.frame_count;
-    draw(video, result.detections);
-    progress(time / duration);
-    status(`frame ${frames}  ·  ${time.toFixed(1)}s of ${duration.toFixed(1)}s`);
+  const result = await postVideo(file);
+  if (!running) {
+    return;
   }
-  if (running) {
-    status(`${frames} frames processed. finalize to see the inventory.`);
-  }
+
+  frames = result.frame_count;
+  progress(1, false);
+  elements.finalize.disabled = false;
+  status(`${frames} sampled frames processed. finalize to see the inventory.`);
 }
 
 async function runCamera(video) {
@@ -398,6 +418,13 @@ async function start(video, run) {
   } catch (error) {
     status(error.message);
     running = false;
+    if (session) {
+      await fetch(apiUrl(`/v1/sessions/${session}`), { method: "DELETE" });
+      session = null;
+    }
+    elements.camera.disabled = false;
+    elements.finalize.disabled = true;
+    elements.stop.disabled = true;
   }
 }
 
@@ -434,9 +461,9 @@ elements.file.addEventListener("change", async (event) => {
   const video = document.createElement("video");
   video.src = URL.createObjectURL(file);
   video.muted = true;
-  await new Promise((resolve) => video.addEventListener("loadedmetadata", resolve, { once: true }));
+  await new Promise((resolve) => video.addEventListener("loadeddata", resolve, { once: true }));
   source = video;
-  await start(video, runVideo);
+  await start(video, () => runVideo(file, video));
 });
 
 elements.stop.addEventListener("click", async () => {

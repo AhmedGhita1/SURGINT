@@ -1,5 +1,5 @@
 import logging
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Iterable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Lock
@@ -19,9 +19,11 @@ from services.api.schemas import (
     HealthResponse,
     SessionCreatedResponse,
     TrackedDetectionResponse,
+    VideoProcessedResponse,
 )
 from services.api.sessions import ActiveSession, create_active_session
 from services.api.settings import ServingSettings
+from services.api.video import InvalidVideoError, decode_sampled_frames
 from surgint.decision import ItemContextOverride, SessionContext
 from surgint.model.detector import Detector
 from surgint.model.transform import Transform
@@ -34,10 +36,12 @@ CONSOLE = Path(__file__).parent / "static" / "index.html"
 def create_app(
     settings: ServingSettings | None = None,
     detector_loader: Callable[[Path], Detector] | None = None,
+    video_decoder: Callable[[bytes, float], Iterable[np.ndarray]] | None = None,
 ) -> FastAPI:
     """Create the local API and load the model during application startup."""
     settings = settings or ServingSettings.from_environment()
     detector_loader = detector_loader or Detector.from_checkpoint
+    video_decoder = video_decoder or decode_sampled_frames
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -188,6 +192,79 @@ def create_app(
             frame_count=frame_count,
             detections=response_detections,
         )
+
+    @application.post(
+        "/v1/sessions/{session_id}/video",
+        response_model=VideoProcessedResponse,
+    )
+    def process_video(
+        session_id: UUID,
+        video: Annotated[UploadFile, File()],
+    ) -> VideoProcessedResponse:
+        with application.state.sessions_lock:
+            session = application.state.sessions.get(session_id)
+        if session is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="session not found",
+            )
+
+        contents = video.file.read(settings.max_video_bytes + 1)
+        if not contents:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="video is empty",
+            )
+        if len(contents) > settings.max_video_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail="video exceeds the upload limit",
+            )
+
+        with session.lock:
+            if session.decision_support.is_finalized:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="session has already been finalized",
+                )
+            if session.decision_support.frame_count:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="session already contains frames",
+                )
+
+            working = create_active_session(session.pipeline.detector, session.pipeline.transform)
+            batch = []
+
+            def process_batch() -> None:
+                with application.state.inference_lock:
+                    detections = working.pipeline.predict_batch(batch, score_threshold=0.0)
+                for frame_detections in detections:
+                    working.decision_support.update(frame_detections)
+                batch.clear()
+
+            try:
+                for frame in video_decoder(contents, settings.video_sample_fps):
+                    batch.append(frame)
+                    if len(batch) == settings.video_batch_size:
+                        process_batch()
+                if batch:
+                    process_batch()
+            except InvalidVideoError as error:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=str(error),
+                ) from error
+
+            if not working.decision_support.frame_count:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="video contains no decodable frames",
+                )
+
+            session.pipeline = working.pipeline
+            session.decision_support = working.decision_support
+            return VideoProcessedResponse(frame_count=session.decision_support.frame_count)
 
     @application.post(
         "/v1/sessions/{session_id}/finalize",
