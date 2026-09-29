@@ -1,1 +1,1 @@
-"""Local HTTP API for Surgint."""
+"""Local HTTP API for surgint-instruments"""

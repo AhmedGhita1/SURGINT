@@ -6,7 +6,7 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class ServingSettings:
-    """Configuration needed by the local API to load the model ."""
+    """configuration required to load the model."""
 
     checkpoint: Path | None
     device: str = "cpu"

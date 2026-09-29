@@ -38,7 +38,7 @@ def create_app(
     detector_loader: Callable[[Path], Detector] | None = None,
     video_decoder: Callable[[bytes, float], Iterable[np.ndarray]] | None = None,
 ) -> FastAPI:
-    """Create the local API and load the model during application startup."""
+    """create the local API and load the model during application startup."""
     settings = settings or ServingSettings.from_environment()
     detector_loader = detector_loader or Detector.from_checkpoint
     video_decoder = video_decoder or decode_sampled_frames

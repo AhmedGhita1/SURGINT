@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Checks one session through the api running in a container: the endpoints
-# answer, a frame decodes, and finalize reaches a policy decision. needs
-# curl and a python with pillow on the path.
+# Checks one session through the api running in a container.
 set -u
 
 BASE=${BASE:-http://127.0.0.1:8000}

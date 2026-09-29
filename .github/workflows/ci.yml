@@ -55,8 +55,7 @@ jobs:
       - run: pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
       - run: pip install .
 
-      # the image needs a checkpoint to serve and models/ is not in the
-      # repository. the build context admits nothing else, so it is written there.
+      # the image needs a checkpoint to serve
       - run: python .github/scripts/ci_checkpoint.py models/ci
 
       - run: docker build --target ci -t surgint:ci .
@@ -78,8 +77,7 @@ jobs:
           echo "the api did not become ready"
           exit 1
 
-      # what the image installs is what it runs: a source copy left at /app
-      # would come first on sys.path and hide a missing packaged resource
+
       - name: the image serves the installed package
         run: |
           paths=$(docker exec surgint-ci python -c 'import services, surgint; print(surgint.__file__, services.__file__)')

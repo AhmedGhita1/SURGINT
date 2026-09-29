@@ -4,8 +4,6 @@ __pycache__/
 data/
 outputs/
 docs/*
-!docs/learning/
-!docs/learning/**
 .claude/
 .vscode/
 archive/

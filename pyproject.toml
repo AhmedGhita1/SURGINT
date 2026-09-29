@@ -7,6 +7,7 @@ name = "surgint"
 description = "Surgical Instrument Intelligence. Real-time detection, tracking, and stateful inventory of surgical instruments in the operating room."
 readme = "README.md"
 version = "1.0.0"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
 # what the runtime and the model need. the training, evaluation and rendering
 # pins live in extras so a serving install does not carry them.

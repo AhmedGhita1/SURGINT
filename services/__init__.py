@@ -1,1 +1,1 @@
-"""Deployable Surgint services."""
+"""Deployable surgint-instruments services."""

@@ -14,7 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN useradd --create-home --uid 1000 surgint
 
-# Install the serving package before copying the model so a model promotion
+# nstall the serving package before copying the model so a model promotion
 # does not invalidate the dependency layer.
 COPY pyproject.toml README.md /src/
 COPY surgint/ /src/surgint/

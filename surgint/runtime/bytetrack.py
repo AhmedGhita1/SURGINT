@@ -23,7 +23,7 @@ class TrackState(Enum):
 
 
 class Track:
-    """holds one track's id, Kalman box estimate, class votes, hit count and state."""
+    """holds one track id, Kalman box estimate, class votes, hit count and state."""
 
     def __init__(
         self,

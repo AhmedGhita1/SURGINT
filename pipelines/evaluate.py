@@ -15,7 +15,7 @@ DEVICE = "cuda"
 
 
 def categories_of(meta: Dict, dataset: SurgintDataset) -> List[str]:
-    """the dataset categories."""
+    """returns the dataset categories."""
     categories = [name for _, name in dataset.mappings.values()]
     if meta["labels"] != categories:
         raise ValueError(f"checkpoint labels {meta['labels']} do not match categories {categories}")

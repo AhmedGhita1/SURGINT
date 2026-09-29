@@ -80,7 +80,7 @@ class ItemContextOverride:
 
 @dataclass(frozen=True)
 class SessionContext:
-    """Decision facts shared by every finalized class in one session."""
+    """Decision facts shared by every class in one session."""
 
     workflow_stage: str
     decision_intent: str = "next-handling-action"

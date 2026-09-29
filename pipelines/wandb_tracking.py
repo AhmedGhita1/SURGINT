@@ -1,4 +1,4 @@
-"""W&B integration owned by offline pipelines rather than the Surgint core."""
+"""W&B integration for the offline pipelines."""
 
 import importlib
 from pathlib import Path
@@ -15,7 +15,7 @@ def init_training_run(
     run_name: str,
     config: Mapping[str, Any],
 ):
-    """Create the W&B run that records one training execution."""
+    """create a W&B run to record one training execution."""
     try:
         wandb = importlib.import_module("wandb")
     except ModuleNotFoundError as error:
@@ -33,12 +33,12 @@ def init_training_run(
 
 
 def log_epoch(run, record: Mapping[str, Any], epoch: int) -> None:
-    """Record one completed training epoch."""
+    """record one completed training epoch."""
     run.log(dict(record), step=epoch)
 
 
 def log_candidate_model(run, checkpoint: str | Path, name: str, run_alias: str):
-    """Log a validated checkpoint as a candidate model artifact, without promoting it."""
+    """log a validated checkpoint as a candidate model artifact, without promoting it."""
     checkpoint = Path(checkpoint)
     ModelManifest.load(checkpoint)
     artifact = run.log_artifact(

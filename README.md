@@ -1,104 +1,102 @@
 ---
-title: SURGINT
+title: SURGINT Instruments
 sdk: docker
 app_port: 7860
 ---
 
-# SURGINT
+# SURGINT Instruments
 
-SURGINT (*Surgical Instrument Intelligence*) is a GPU-backed demonstration of surgical
-instrument detection, tracking, inventory estimation, and rule-based handling guidance.
+[![CI](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml/badge.svg)](https://github.com/AhmedGhita1/SURGINT/actions/workflows/ci.yml)
 
-> **Research demonstration only.** SURGINT is not a medical device, has not been clinically
-> validated, and must not be used for clinical decisions, patient care, or safety-critical
-> instrument accounting.
+*surgint-instruments is part of the surgical intelligence (SURGINT) family of projects.*
 
-The public demonstration runs at
-[huggingface.co/spaces/AhmedGhita/surgint](https://huggingface.co/spaces/AhmedGhita/surgint).
+**SURGINT Instruments** is focused on surgical instruments inventory and handling procedures. It turns a surgical-tray video or live camera feed into an instrument inventory. It detects and tracks tray items using RT-DETR and ByteTracker, then applies explicit ontology-backed rules to produce handling procedure guidance.
 
-## What the release contains
 
-- RT-DETR detection for 13 tray-item classes.
-- ByteTrack-style association and session-level inventory estimation.
-- An OWL ontology and versioned demonstration policy for handling recommendations.
-- A FastAPI service with a small browser interface.
-- Complete-video upload with server-side 1 FPS sampling and four-frame GPU batches.
-- Live-camera processing through the same session runtime.
-- A CUDA-only Docker deployment for a Hugging Face GPU Space.
-- Training and evaluation pipelines with W&B experiment and model-artifact integration.
+> **Research demonstration only.** SURGINT Instruments has not been clinically validated, and must not be used for clinical decisions, patient care, or safety-critical instrument accounting.
 
-The release model is baked into the production image from the immutable W&B reference
-`SETLabs-HCT/surgint/surgint-detector:v0`. The model artifact includes its labels,
-preprocessing contract, provenance, and weights digest.
+![SURGINT Instruments architecture](docs/SURGINT-architecture-v2.png)
 
-## Runtime flow
+## Demo
 
-```text
-recorded video: one upload -> sample -> preprocess batches -> GPU inference
-                                                -> chronological tracking
-                                                -> inventory -> policy result
+The public GPU demo is available on [Hugging Face Spaces](https://huggingface.co/spaces/AhmedGhita/surgint).
 
-live camera:    frame stream -> GPU inference -> tracking -> inventory -> policy result
+
+## Run with Docker
+
+The production image is GPU-only. A local deployment requires Docker with BuildKit, the NVIDIA Container Toolkit, an NVIDIA driver compatible with CUDA 12.1, and a W&B API key that can read the release artifact.
+
+The following commands build the image from the immutable model artifact used by the hosted demo:
+
+```bash
+export WANDB_API_KEY="<your W&B API key>"
+
+docker build --target production \
+  --secret id=WANDB_API_KEY,env=WANDB_API_KEY \
+  --build-arg WANDB_ARTIFACT=YOUR_WANDB_ENTITY/YOUR_WANDB_PROJECT/surgint-detector:v0 \
+  -t surgint-instruments:1.0.0 .
 ```
 
-Recorded uploads are limited to 256 MiB and 300 sampled frames. At the default 1 FPS,
-this represents at most five minutes of video. The service uses one GPU inference lock and
-keeps at most eight active in-memory sessions.
+The model is downloaded once during the image build and stored inside the final image. The W&B credential is exposed only as a build secret; it is not copied into the image.
 
-## API
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /health/live` | Process liveness |
-| `GET /health/ready` | Model readiness |
-| `POST /v1/sessions` | Create isolated tracking state |
-| `POST /v1/sessions/{id}/video` | Upload and process one complete recording |
-| `POST /v1/sessions/{id}/frames` | Process one live-camera frame |
-| `POST /v1/sessions/{id}/finalize` | Freeze inventory and resolve handling guidance |
-| `DELETE /v1/sessions/{id}` | Release the session |
-
-FastAPI exposes the generated API documentation at `/docs`.
-
-## Evaluation status
-
-The latest local synthetic tracking evaluation covers 4,200 frames from seven complete
-sessions. It reports MOTA `0.554`, IDF1 `0.565`, class accuracy `0.943`, and inventory mean
-absolute error `0.934` items per class. Class-level exact inventory agreement is `0.396`;
-no evaluated session achieved an entirely exact inventory.
-
-These results describe synthetic data and do not establish clinical performance. The
-release prioritizes a reproducible end-to-end demonstration over production accuracy.
-
-## Deployment
-
-The production Docker build requires:
-
-- Build variable `WANDB_ARTIFACT=SETLabs-HCT/surgint/surgint-detector:v0`
-- Build secret `WANDB_API_KEY`
-- NVIDIA GPU runtime compatible with CUDA 12.1
-
-The image downloads the immutable artifact during its build. The credential does not enter
-the final image. GitHub Actions tests the Python package, builds and smoke-tests the container,
-and synchronizes `main` to the public Hugging Face Docker Space.
-
-## Repository layout
-
-```text
-surgint/       reusable model, evaluation, tracking, inventory, ontology and policy code
-services/api/  FastAPI application and browser interface
-pipelines/     offline training, evaluation and W&B registration entry points
-configs/       training and evaluation configurations
-tests/         unit, integration and real-model checks
+```bash
+docker run --rm --gpus all -p 7860:7860 surgint-instruments:1.0.0
 ```
 
-`pipelines/build_dataset.py` is intentionally still a stub. Dataset collection, curation,
-labeling, and publication remain offline work and are not required to run this release.
+The browser interface is then available at [http://localhost:7860](http://localhost:7860), and the generated OpenAPI documentation is available at [http://localhost:7860/docs](http://localhost:7860/docs).
 
-## Known limitations
 
-- The handling policy is explicitly demonstration-only.
-- Uploaded-video processing is synchronous and returns after the complete job finishes.
-- Sessions live only in one process and do not survive a container restart.
-- The optimized multi-scale deformable-attention CUDA extension is not compiled; Transformers
-  uses its PyTorch CUDA fallback.
-- Model behavior has not been evaluated on clinical deployments or diverse real-world sites.
+
+## Development
+
+SURGINT Instruments supports Python 3.10 and later. An editable development installation contains the model, serving, training, evaluation, rendering, and test dependencies:
+
+```bash
+python -m pip install -e ".[dev,render,serving,training]"
+```
+
+## Training and evaluation
+
+Training and evaluation are offline workflows. They consume versioned datasets and produce reproducible run directories under `outputs/runs`; they do not depend on production traffic. Production observations may become a future data source only after a separate collection, curation, labeling, and dataset-versioning process.
+
+The configuration files under `configs/` define the dataset, model revision, hyperparameters, splits, and metrics. Typical entry points are:
+
+```bash
+# Local training
+python -m pipelines.train --config configs/train.yaml
+
+# Training tracked in W&B, with the best checkpoint logged as a candidate artifact
+python -m pipelines.train --config configs/train.yaml \
+  --wandb-project YOUR_WANDB_PROJECT --wandb-entity YOUR_WANDB_ENTITY
+
+# Detection evaluation
+python -m pipelines.evaluate outputs/runs/<run-id>/best --config configs/eval.yaml
+
+# End-to-end detection, tracking, and inventory evaluation
+python -m pipelines.evaluate outputs/runs/<run-id>/best --config configs/eval_sessions.yaml
+```
+
+An already validated checkpoint can be registered separately:
+
+```bash
+python -m pipelines.register_model outputs/runs/<run-id>/best \
+  --project YOUR_WANDB_PROJECT --entity YOUR_WANDB_ENTITY
+```
+
+## Citation
+
+The following BibTeX entry cites this project:
+
+```bibtex
+@software{ghita_2026_surgint_instruments,
+  author = {Ahmed Ghita},
+  title = {SURGINT Instruments},
+  year = {2026},
+  version = {1.0.0},
+  url = {https://github.com/AhmedGhita1/SURGINT}
+}
+```
+
+## License
+
+The source code is released under the [MIT License](LICENSE). Model weights and datasets are separate artifacts and may have their own license terms.

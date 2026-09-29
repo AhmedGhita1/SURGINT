@@ -1,9 +1,4 @@
-"""The checkpoint the image smoke test serves.
-
-models/ is not in the repository, so this builds one from the pretrained
-weights and the label set the ontology recognizes. the geometry is smaller
-than a trained checkpoint's so one frame decodes quickly on a runner's cpu.
-"""
+"""builds a checkpoint for the docker image smoke test."""
 
 import sys
 from pathlib import Path
