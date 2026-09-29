@@ -87,7 +87,12 @@ class Detector(nn.Module):
     def predict(self, pixel_values) -> Tuple[torch.Tensor, torch.Tensor]:
         """eval and inference."""
         self.eval()
-        outputs = self(pixel_values)
+        with torch.autocast(
+            device_type="cuda",
+            dtype=torch.float16,
+            enabled=self.device.type == "cuda",
+        ):
+            outputs = self(pixel_values)
         return outputs.logits.cpu(), outputs.pred_boxes.cpu()
 
     def save_checkpoint(
