@@ -3,7 +3,7 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev/prod-hf]
 
 jobs:
   test:
@@ -93,3 +93,22 @@ jobs:
 
       - if: always()
         run: docker logs surgint-ci
+
+  deploy-hf:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev/prod-hf'
+    needs: [test, image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: deploy to Hugging Face Space
+        uses: huggingface/hub-sync@v0.3.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: ${{ vars.HF_SPACE_ID }}
+          hf_token: ${{ secrets.HF_TOKEN }}
+          repo_type: space
+          space_sdk: docker
+          private: true
