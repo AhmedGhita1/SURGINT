@@ -3,10 +3,13 @@ __pycache__/
 *.egg-info/
 data/
 outputs/
-docs/
+docs/*
+!docs/learning/
+!docs/learning/**
 .claude/
 .vscode/
 archive/
 notebooks/
 models/
 temp/
+wandb/
