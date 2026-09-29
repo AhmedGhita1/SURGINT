@@ -269,6 +269,18 @@ let stream = null;
 let running = false;
 let frames = 0;
 
+// Private HF Spaces authorize the iframe through this short-lived signature.
+// Local and public deployments have no signature, so their URLs stay unchanged.
+const hfSign = new URLSearchParams(window.location.search).get("__sign");
+
+function apiUrl(path) {
+  const url = new URL(path, window.location.origin);
+  if (hfSign) {
+    url.searchParams.set("__sign", hfSign);
+  }
+  return url.toString();
+}
+
 function status(message) {
   elements.status.textContent = message;
 }
@@ -279,7 +291,7 @@ function progress(fraction, complete) {
 }
 
 async function createSession() {
-  const response = await fetch("/v1/sessions", { method: "POST" });
+  const response = await fetch(apiUrl("/v1/sessions"), { method: "POST" });
   if (!response.ok) {
     throw new Error(
       response.status === 429
@@ -299,7 +311,10 @@ async function postFrame(video) {
   const body = new FormData();
   body.append("image", blob, "frame.jpg");
 
-  const response = await fetch(`/v1/sessions/${session}/frames`, { method: "POST", body });
+  const response = await fetch(apiUrl(`/v1/sessions/${session}/frames`), {
+    method: "POST",
+    body,
+  });
   if (!response.ok) {
     throw new Error(`frame rejected (${response.status})`);
   }
@@ -427,7 +442,7 @@ elements.file.addEventListener("change", async (event) => {
 elements.stop.addEventListener("click", async () => {
   release();
   if (session) {
-    await fetch(`/v1/sessions/${session}`, { method: "DELETE" });
+    await fetch(apiUrl(`/v1/sessions/${session}`), { method: "DELETE" });
     session = null;
   }
   elements.camera.disabled = false;
@@ -449,7 +464,7 @@ elements.finalize.addEventListener("click", async () => {
     request.contamination_state = elements.contamination.value;
   }
 
-  const response = await fetch(`/v1/sessions/${session}/finalize`, {
+  const response = await fetch(apiUrl(`/v1/sessions/${session}/finalize`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
@@ -465,7 +480,7 @@ elements.finalize.addEventListener("click", async () => {
   render(finalized);
   release();
 
-  await fetch(`/v1/sessions/${session}`, { method: "DELETE" });
+  await fetch(apiUrl(`/v1/sessions/${session}`), { method: "DELETE" });
   session = null;
   elements.camera.disabled = false;
   elements.stop.disabled = true;
@@ -522,7 +537,7 @@ function render(finalized) {
 window.addEventListener("beforeunload", () => {
   release();
   if (session) {
-    navigator.sendBeacon(`/v1/sessions/${session}`);
+    navigator.sendBeacon(apiUrl(`/v1/sessions/${session}`));
   }
 });
 </script>

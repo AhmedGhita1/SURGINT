@@ -57,3 +57,5 @@ def test_console_is_served_from_the_package() -> None:
         response = client.get("/")
         assert response.status_code == 200
         assert "INVENTORY" in response.text
+        assert 'get("__sign")' in response.text
+        assert 'fetch(apiUrl("/v1/sessions")' in response.text
