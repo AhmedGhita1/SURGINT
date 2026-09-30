@@ -4,7 +4,7 @@
 
 *This project is part of the surgical intelligence (SURGINT) family.*
 
-SURGINT Instruments is a research prototype that constructs and monitors surgical instrument inventories from tray videos or live camera feeds, using RT-DETR and ByteTracker for detection and tracking and ontology-backed rules for handling-procedure decision support
+SURGINT Instruments is a research prototype that constructs and monitors surgical instrument inventories from tray videos or live camera feeds, using RT-DETR and ByteTracker for detection and tracking and ontology-backed rules for handling-procedure decision support.
 
 > **Research demonstration only.** SURGINT Instruments has not been clinically validated, and must not be used for clinical decisions, patient care, or safety-critical instrument accounting.
 
