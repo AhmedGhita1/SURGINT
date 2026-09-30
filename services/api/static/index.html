@@ -43,12 +43,10 @@
     min-width: 0;
   }
 
-  canvas, .video-preview {
+  canvas {
     max-width: 100%;
     max-height: 100%;
   }
-
-  .video-preview { display: none; }
 
   .placeholder {
     color: var(--muted);
@@ -183,7 +181,6 @@
 <main>
   <div class="stage">
     <canvas id="stage" width="16" height="9"></canvas>
-    <video class="video-preview" id="video-preview" controls muted playsinline></video>
     <div class="placeholder" id="placeholder">
       Start a camera session, or open a recorded session video.
     </div>
@@ -242,6 +239,10 @@ const ACTION_COLORS = {
   "facility-general-waste": "#3dcd8c",
 };
 
+// Infer on one frame out of every five. Playback still runs at the video's
+// native frame rate, and busy inference drops frames instead of delaying it.
+const INFERENCE_FRAME_STRIDE = 5;
+
 const canvas = document.getElementById("stage");
 const context = canvas.getContext("2d");
 const capture = document.createElement("canvas");
@@ -249,7 +250,6 @@ const captureContext = capture.getContext("2d");
 
 const elements = {
   placeholder: document.getElementById("placeholder"),
-  videoPreview: document.getElementById("video-preview"),
   bar: document.getElementById("bar"),
   fill: document.getElementById("fill"),
   status: document.getElementById("status"),
@@ -265,9 +265,11 @@ const elements = {
 
 let session = null;
 let source = null;
+let sourceUrl = null;
 let stream = null;
 let running = false;
 let frames = 0;
+let videoFrameCallback = null;
 
 // Private HF Spaces authorize the iframe through this short-lived signature.
 // Local and public deployments have no signature, so their URLs stay unchanged.
@@ -303,8 +305,10 @@ async function createSession() {
 }
 
 async function postFrame(video) {
-  capture.width = video.videoWidth;
-  capture.height = video.videoHeight;
+  if (capture.width !== video.videoWidth || capture.height !== video.videoHeight) {
+    capture.width = video.videoWidth;
+    capture.height = video.videoHeight;
+  }
   captureContext.drawImage(video, 0, 0);
 
   const blob = await new Promise((resolve) => capture.toBlob(resolve, "image/jpeg", 0.9));
@@ -321,40 +325,11 @@ async function postFrame(video) {
   return response.json();
 }
 
-function postVideo(file) {
-  const body = new FormData();
-  body.append("video", file, file.name);
-
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open("POST", apiUrl(`/v1/sessions/${session}/video`));
-    request.responseType = "json";
-
-    request.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) {
-        progress((event.loaded / event.total) * 0.35);
-        status(`uploading video · ${Math.round(event.loaded / event.total * 100)}%`);
-      }
-    });
-    request.upload.addEventListener("load", () => {
-      progress(0.35);
-      status("upload complete · processing sampled frames...");
-    });
-    request.addEventListener("load", () => {
-      if (request.status >= 200 && request.status < 300) {
-        resolve(request.response);
-      } else {
-        reject(new Error(request.response?.detail || `video rejected (${request.status})`));
-      }
-    });
-    request.addEventListener("error", () => reject(new Error("video upload failed")));
-    request.send(body);
-  });
-}
-
 function draw(video, detections) {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+  }
   context.drawImage(video, 0, 0);
 
   const scale = canvas.width / 900;
@@ -370,30 +345,92 @@ function draw(video, detections) {
     context.strokeRect(left, top, right - left, bottom - top);
 
     const padding = Math.round(5 * scale);
-    const metrics = context.measureText(detection.label);
+    const label = `${detection.label} #${detection.track_id}`;
+    const metrics = context.measureText(label);
     const height = Math.max(18, Math.round(26 * scale));
     const chipTop = Math.max(0, top - height);
 
     context.fillStyle = color;
     context.fillRect(left, chipTop, metrics.width + padding * 2, height);
     context.fillStyle = "#11161f";
-    context.fillText(detection.label, left + padding, chipTop + padding / 2);
+    context.fillText(label, left + padding, chipTop + padding / 2);
   }
 }
 
-async function runVideo(file, video) {
+async function runVideo(video) {
   elements.finalize.disabled = true;
-  video.play().catch(() => {});
+  let latestDetections = [];
+  let presentedFrames = 0;
+  let lastInferenceFrame = 1 - INFERENCE_FRAME_STRIDE;
+  let inferenceInFlight = false;
+  let playbackEnded = false;
+  let completed = false;
 
-  const result = await postVideo(file);
-  if (!running) {
-    return;
-  }
+  const finish = () => {
+    if (!running || !playbackEnded || inferenceInFlight || completed) {
+      return;
+    }
+    completed = true;
+    progress(1, false);
+    elements.finalize.disabled = false;
+    status(`${frames} sampled frames processed. finalize to see the inventory.`);
+  };
 
-  frames = result.frame_count;
-  progress(1, false);
-  elements.finalize.disabled = false;
-  status(`${frames} sampled frames processed. finalize to see the inventory.`);
+  const infer = async () => {
+    inferenceInFlight = true;
+    try {
+      const result = await postFrame(video);
+      frames = result.frame_count;
+      latestDetections = result.detections;
+      status(
+        `video frame ${presentedFrames} · ${frames} sampled frames processed · `
+        + `${latestDetections.length} tracked`,
+      );
+    } catch (error) {
+      status(error.message);
+      running = false;
+      video.pause();
+    } finally {
+      inferenceInFlight = false;
+      finish();
+    }
+  };
+
+  const showFrame = (_now, metadata) => {
+    if (!running) {
+      videoFrameCallback = null;
+      return;
+    }
+
+    presentedFrames = metadata.presentedFrames;
+    draw(video, latestDetections);
+    if (Number.isFinite(video.duration) && video.duration > 0) {
+      progress(video.currentTime / video.duration, false);
+    }
+
+    if (
+      !inferenceInFlight
+      && presentedFrames - lastInferenceFrame >= INFERENCE_FRAME_STRIDE
+    ) {
+      lastInferenceFrame = presentedFrames;
+      void infer();
+    }
+
+    videoFrameCallback = video.requestVideoFrameCallback(showFrame);
+  };
+
+  video.addEventListener("ended", () => {
+    playbackEnded = true;
+    if (videoFrameCallback !== null) {
+      video.cancelVideoFrameCallback(videoFrameCallback);
+      videoFrameCallback = null;
+    }
+    finish();
+  }, { once: true });
+
+  status(`playing at source frame rate · inferring every ${INFERENCE_FRAME_STRIDE} frames`);
+  videoFrameCallback = video.requestVideoFrameCallback(showFrame);
+  await video.play();
 }
 
 async function runCamera(video) {
@@ -422,7 +459,7 @@ async function start(video, run) {
     await run(video);
   } catch (error) {
     status(error.message);
-    running = false;
+    release();
     if (session) {
       await fetch(apiUrl(`/v1/sessions/${session}`), { method: "DELETE" });
       session = null;
@@ -436,7 +473,18 @@ async function start(video, run) {
 
 function release() {
   running = false;
-  elements.videoPreview.pause();
+  if (source && videoFrameCallback !== null) {
+    source.cancelVideoFrameCallback(videoFrameCallback);
+    videoFrameCallback = null;
+  }
+  if (source) {
+    source.pause();
+    source = null;
+  }
+  if (sourceUrl) {
+    URL.revokeObjectURL(sourceUrl);
+    sourceUrl = null;
+  }
   if (stream) {
     stream.getTracks().forEach((track) => track.stop());
     stream = null;
@@ -455,8 +503,6 @@ elements.camera.addEventListener("click", async () => {
   video.srcObject = stream;
   video.muted = true;
   await video.play();
-  canvas.style.display = "block";
-  elements.videoPreview.style.display = "none";
   source = video;
   await start(video, runCamera);
 });
@@ -467,15 +513,14 @@ elements.file.addEventListener("change", async (event) => {
     return;
   }
 
-  const video = elements.videoPreview;
-  const objectUrl = URL.createObjectURL(file);
-  video.src = objectUrl;
+  const video = document.createElement("video");
+  sourceUrl = URL.createObjectURL(file);
+  video.src = sourceUrl;
+  video.muted = true;
+  video.playsInline = true;
   await new Promise((resolve) => video.addEventListener("loadeddata", resolve, { once: true }));
-  video.addEventListener("emptied", () => URL.revokeObjectURL(objectUrl), { once: true });
-  canvas.style.display = "none";
-  video.style.display = "block";
   source = video;
-  await start(video, () => runVideo(file, video));
+  await start(video, () => runVideo(video));
 });
 
 elements.stop.addEventListener("click", async () => {
