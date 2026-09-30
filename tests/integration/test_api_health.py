@@ -59,8 +59,10 @@ def test_console_is_served_from_the_package() -> None:
         assert "INVENTORY" in response.text
         assert 'get("__sign")' in response.text
         assert 'fetch(apiUrl("/v1/sessions")' in response.text
-        assert "sessions/${session}/video" in response.text
-        assert "FRAME_STEP" not in response.text
-        assert "Research demonstration only" in response.text
+        assert "INFERENCE_FRAME_STRIDE = 5" in response.text
+        assert "requestVideoFrameCallback(showFrame)" in response.text
+        assert "presentedFrames - lastInferenceFrame" in response.text
+        assert "Research demonstration only" not in response.text
+        assert "latestDetections = result.detections" in response.text
         assert 'method: "DELETE"' in response.text
         assert "keepalive: true" in response.text
