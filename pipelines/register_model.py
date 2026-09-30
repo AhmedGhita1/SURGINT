@@ -22,7 +22,7 @@ def register_model(
         wandb = importlib.import_module("wandb")
     except ModuleNotFoundError as error:
         raise RuntimeError(
-            'W&B registration requires the training dependency: pip install -e ".[training]"'
+            'W&B registration requires the training dependency: pip install -e ".[train]"'
         ) from error
 
     with wandb.init(

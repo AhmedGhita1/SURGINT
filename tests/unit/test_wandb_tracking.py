@@ -89,7 +89,7 @@ def test_missing_sdk_has_an_actionable_error(monkeypatch):
 
     monkeypatch.setattr(wandb_tracking.importlib, "import_module", missing)
 
-    with pytest.raises(RuntimeError, match=r"\[training\]"):
+    with pytest.raises(RuntimeError, match=r"\[train\]"):
         wandb_tracking.init_training_run("surgint", None, "run-123", {})
 
 

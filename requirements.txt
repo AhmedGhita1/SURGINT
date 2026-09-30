@@ -1,7 +1,6 @@
-# the package and every pin it declares, across all extras: the test suite
-# covers training, evaluation and rendering as well as serving.
+# The dev extra includes serving, training, evaluation, and test dependencies.
 # pyproject.toml is the single source of truth for those pins.
--e .[dev,render,serving,training]
+-e .[dev]
 
 # surgint imports neither of these.
 # torchvision is pinned to pair with the torch build ci installs from the

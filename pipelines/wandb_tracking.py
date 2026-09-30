@@ -20,7 +20,7 @@ def init_training_run(
         wandb = importlib.import_module("wandb")
     except ModuleNotFoundError as error:
         raise RuntimeError(
-            'W&B tracking requires the training dependency: pip install -e ".[training]"'
+            'W&B tracking requires the training dependency: pip install -e ".[train]"'
         ) from error
 
     return wandb.init(
