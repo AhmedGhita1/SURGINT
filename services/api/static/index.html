@@ -43,10 +43,12 @@
     min-width: 0;
   }
 
-  canvas {
+  canvas, .video-preview {
     max-width: 100%;
     max-height: 100%;
   }
+
+  .video-preview { display: none; }
 
   .placeholder {
     color: var(--muted);
@@ -72,13 +74,6 @@
     font-size: 40px;
     font-weight: 400;
     letter-spacing: 0.06em;
-  }
-
-  .notice {
-    margin: -10px 0 0;
-    color: #f5c76b;
-    font-size: 13px;
-    line-height: 1.45;
   }
 
   .bar {
@@ -188,6 +183,7 @@
 <main>
   <div class="stage">
     <canvas id="stage" width="16" height="9"></canvas>
+    <video class="video-preview" id="video-preview" controls muted playsinline></video>
     <div class="placeholder" id="placeholder">
       Start a camera session, or open a recorded session video.
     </div>
@@ -195,9 +191,6 @@
 
   <section class="panel">
     <h1>INVENTORY</h1>
-    <p class="notice">
-      Research demonstration only. Not a medical device and not for clinical decisions.
-    </p>
     <div class="bar" id="bar"><span id="fill"></span></div>
 
     <div class="controls">
@@ -256,6 +249,7 @@ const captureContext = capture.getContext("2d");
 
 const elements = {
   placeholder: document.getElementById("placeholder"),
+  videoPreview: document.getElementById("video-preview"),
   bar: document.getElementById("bar"),
   fill: document.getElementById("fill"),
   status: document.getElementById("status"),
@@ -344,7 +338,7 @@ function postVideo(file) {
     });
     request.upload.addEventListener("load", () => {
       progress(0.35);
-      status("upload complete · processing sampled frames on the GPU...");
+      status("upload complete · processing sampled frames...");
     });
     request.addEventListener("load", () => {
       if (request.status >= 200 && request.status < 300) {
@@ -389,7 +383,7 @@ function draw(video, detections) {
 
 async function runVideo(file, video) {
   elements.finalize.disabled = true;
-  draw(video, []);
+  video.play().catch(() => {});
 
   const result = await postVideo(file);
   if (!running) {
@@ -442,6 +436,7 @@ async function start(video, run) {
 
 function release() {
   running = false;
+  elements.videoPreview.pause();
   if (stream) {
     stream.getTracks().forEach((track) => track.stop());
     stream = null;
@@ -460,6 +455,8 @@ elements.camera.addEventListener("click", async () => {
   video.srcObject = stream;
   video.muted = true;
   await video.play();
+  canvas.style.display = "block";
+  elements.videoPreview.style.display = "none";
   source = video;
   await start(video, runCamera);
 });
@@ -470,10 +467,13 @@ elements.file.addEventListener("change", async (event) => {
     return;
   }
 
-  const video = document.createElement("video");
-  video.src = URL.createObjectURL(file);
-  video.muted = true;
+  const video = elements.videoPreview;
+  const objectUrl = URL.createObjectURL(file);
+  video.src = objectUrl;
   await new Promise((resolve) => video.addEventListener("loadeddata", resolve, { once: true }));
+  video.addEventListener("emptied", () => URL.revokeObjectURL(objectUrl), { once: true });
+  canvas.style.display = "none";
+  video.style.display = "block";
   source = video;
   await start(video, () => runVideo(file, video));
 });

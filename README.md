@@ -20,8 +20,8 @@ Running the Docker image requires Docker, the NVIDIA Container Toolkit, and an N
 compatible with CUDA 12.1.
 
 ```bash
-docker pull ghcr.io/ahmedghita1/surgint-instruments:1.0.0
-docker run --rm --gpus all -p 7860:7860 ghcr.io/ahmedghita1/surgint-instruments:1.0.0
+docker pull ghcr.io/ahmedghita1/surgint-instruments:1.0.1
+docker run --rm --gpus all -p 7860:7860 ghcr.io/ahmedghita1/surgint-instruments:1.0.1
 ```
 
 Open <http://localhost:7860> after the container reports healthy.
@@ -74,7 +74,7 @@ The following BibTeX entry cites this project:
   author = {Ahmed Ghita},
   title = {SURGINT Instruments},
   year = {2026},
-  version = {1.0.0},
+  version = {1.0.1},
   url = {https://github.com/AhmedGhita1/surgint-instruments}
 }
 ```
