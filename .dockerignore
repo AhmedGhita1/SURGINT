@@ -9,7 +9,8 @@
 !services/
 !services/**
 !models/
-!models/**
+!models/ci/
+!models/ci/**
 
 # bytecode from the host python never belongs in the image
 **/__pycache__/

@@ -19,7 +19,7 @@ RUN useradd --create-home --uid 1000 surgint
 COPY pyproject.toml README.md LICENSE /src/
 COPY surgint/ /src/surgint/
 COPY services/ /src/services/
-RUN python -m pip install --retries 10 --timeout 120 "/src[serving]" \
+RUN python -m pip install --retries 10 --timeout 120 "/src[serve]" \
     && rm -rf /src
 
 WORKDIR /app
@@ -34,7 +34,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=120s --retries=3 \
 CMD ["python", "-m", "uvicorn", "services.api.app:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
 
 
-# Pull requests use a generated checkpoint and require no deployment secret.
+# CI uses a generated checkpoint and requires no deployment secret.
 FROM scratch AS ci-model
 COPY models/ci/ /model/
 
