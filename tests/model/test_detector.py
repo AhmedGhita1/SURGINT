@@ -10,7 +10,7 @@ import torch
 from surgint.model.detector import Detector
 
 # these load a real checkpoint from the hub
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.model
 
 CHECKPOINT = "PekingU/rtdetr_r18vd_coco_o365"
 ID2LABEL = {0: "scalpel", 1: "scissors", 2: "forceps"}
@@ -57,7 +57,7 @@ def test_construction():
 
 
 def test_persistence():
-    """a checkpoint is the weights plus meta.yaml"""
+    """a checkpoint is the weights plus a versioned manifest"""
 
     detector = build_detector()
     geometry = {
@@ -72,12 +72,13 @@ def test_persistence():
         detector.save_checkpoint(path, geometry)
 
         written = sorted(f.name for f in path.iterdir())
-        assert "meta.yaml" in written, f"got {written}"
+        assert "manifest.yaml" in written, f"got {written}"
         assert "model.safetensors" in written, f"got {written}"
 
         reloaded = Detector.from_checkpoint(path)
 
         # the labels come from the model config, so they cannot disagree with the head
+        assert reloaded.manifest is not None
         assert reloaded.meta["labels"] == [ID2LABEL[i] for i in sorted(ID2LABEL)]
         assert reloaded.model.config.num_labels == len(ID2LABEL), "the head was resized on reload"
         assert {int(k): v for k, v in reloaded.id2label.items()} == ID2LABEL, "labels were lost"
@@ -86,12 +87,12 @@ def test_persistence():
         for key, value in geometry.items():
             assert reloaded.meta[key] == value, f"{key} changed to {reloaded.meta[key]}"
 
-        # weights alone are not a checkpoint
+        # weights alone are not a model artifact
         bare = Path(directory) / "bare"
         detector.model.save_pretrained(bare)
         try:
             Detector.from_checkpoint(bare)
-            assert False, "should raise for a checkpoint without meta.yaml"
+            assert False, "should raise for an artifact without a manifest"
         except FileNotFoundError:
             pass
 

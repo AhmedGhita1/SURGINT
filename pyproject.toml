@@ -6,15 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "surgint"
 description = "Surgical Instrument Intelligence. Real-time detection, tracking, and stateful inventory of surgical instruments in the operating room."
 readme = "README.md"
-version = "0.1.0.dev0"
+version = "1.0.0"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
+
 dependencies = [
-    "imageio[ffmpeg]==2.36.0",
-    "motmetrics==1.4.0",
+    "imageio==2.36.0",
+    "imageio-ffmpeg==0.5.1",
     "numpy==1.26.4",
     "owlready2==0.47",
     "pillow==10.4.0",
-    "pycocotools==2.0.8",
     "pyyaml==6.0.2",
     "scipy==1.14.1",
     "torch==2.4.1",
@@ -23,26 +24,37 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Offline training and evaluation share one environment.
+train = [
+    "motmetrics==1.4.0",
+    "pycocotools==2.0.8",
+    "wandb==0.30.0",
+]
+serve = [
+    "fastapi==0.141.1",
+    "pydantic==2.13.5",
+    "python-multipart==0.0.32",
+    "uvicorn==0.53.0",
+]
 dev = [
+    "surgint[serve,train]",
+    "httpx2==2.13.1",
     "pytest==8.3.3",
     "ruff==0.16.8",
     "tomli==2.4.1; python_version < '3.11'",
 ]
 
-[project.scripts]
-train = "surgint.cli.train:main"
-
 [tool.ruff]
 line-length = 100
 
 [tool.ruff.lint]
-# real errors only. style and import order are left alone on purpose: enforcing them
-# would rewrite about 1500 lines for no behavioural gain
 select = ["E9", "F"]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["services*", "surgint*"]
 
 [tool.setuptools.package-data]
+"services.api" = ["static/*.html"]
 "surgint.ontology" = ["*.owl"]
 "surgint.policy" = ["*.yaml"]

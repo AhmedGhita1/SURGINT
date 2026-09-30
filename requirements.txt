@@ -1,4 +1,4 @@
-# the package and every runtime pin it declares, plus the test dependency.
+# The dev extra includes serving, training, evaluation, and test dependencies.
 # pyproject.toml is the single source of truth for those pins.
 -e .[dev]
 

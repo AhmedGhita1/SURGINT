@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SURGINT</title>
+<style>
+  :root {
+    --background: #0e141d;
+    --panel: #161e2a;
+    --row: #1f2938;
+    --header: #263243;
+    --text: #f1f5f9;
+    --muted: #9daabc;
+    --track: #374457;
+    --active: #41adef;
+    --complete: #3dcd8c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--text);
+    font-family: system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  main {
+    display: flex;
+    height: 100%;
+  }
+
+  .stage {
+    flex: 1 1 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #11161f;
+    position: relative;
+    min-width: 0;
+  }
+
+  canvas {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .placeholder {
+    color: var(--muted);
+    font-size: 15px;
+    text-align: center;
+    padding: 0 32px;
+    line-height: 1.7;
+  }
+
+  .panel {
+    flex: 1 1 50%;
+    background: var(--panel);
+    padding: 34px 38px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 40px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+  }
+
+  .notice {
+    margin: -10px 0 0;
+    color: #f5c76b;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .bar {
+    height: 10px;
+    border-radius: 5px;
+    background: var(--track);
+    overflow: hidden;
+  }
+
+  .bar > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 5px;
+    background: var(--active);
+    transition: width 160ms linear;
+  }
+
+  .bar.complete > span { background: var(--complete); }
+
+  .status {
+    color: var(--muted);
+    font-size: 14px;
+    min-height: 20px;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  button, select, label.file {
+    font: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--header);
+    border: 1px solid var(--track);
+    border-radius: 6px;
+    padding: 9px 16px;
+    cursor: pointer;
+  }
+
+  button:hover:not(:disabled), label.file:hover { border-color: var(--muted); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  input[type=file] { display: none; }
+
+  .context {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .context select { padding: 7px 10px; }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 4px;
+    font-size: 17px;
+  }
+
+  th {
+    text-align: left;
+    font-weight: 400;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    padding: 10px 14px;
+    background: var(--header);
+  }
+
+  th:first-child { border-radius: 6px 0 0 6px; }
+  th:last-child { border-radius: 0 6px 6px 0; }
+
+  td {
+    padding: 9px 14px;
+    background: var(--row);
+  }
+
+  td:first-child {
+    border-left: 5px solid transparent;
+    border-radius: 6px 0 0 6px;
+  }
+
+  td:last-child { border-radius: 0 6px 6px 0; }
+
+  .count { color: var(--muted); width: 18%; }
+  .action { width: 46%; }
+  .none { color: var(--muted); }
+
+  .results { overflow-y: auto; flex: 1; }
+
+  .detail td {
+    font-size: 13px;
+    color: var(--muted);
+    padding-top: 0;
+    padding-bottom: 11px;
+    border-radius: 0 0 6px 6px;
+  }
+
+  .detail td:first-child { border-radius: 0 0 0 6px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="stage">
+    <canvas id="stage" width="16" height="9"></canvas>
+    <div class="placeholder" id="placeholder">
+      Start a camera session, or open a recorded session video.
+    </div>
+  </div>
+
+  <section class="panel">
+    <h1>INVENTORY</h1>
+    <p class="notice">
+      Research demonstration only. Not a medical device and not for clinical decisions.
+    </p>
+    <div class="bar" id="bar"><span id="fill"></span></div>
+
+    <div class="controls">
+      <button id="camera">Start camera</button>
+      <label class="file" for="file">Open video</label>
+      <input type="file" id="file" accept="video/*">
+      <button id="finalize" disabled>Finalize</button>
+      <button id="stop" disabled>Stop</button>
+    </div>
+
+    <div class="context">
+      <select id="stage-select" title="workflow stage">
+        <option value="post-procedure-clearing">post-procedure-clearing</option>
+        <option value="in-procedure">in-procedure</option>
+        <option value="pre-procedure-setup">pre-procedure-setup</option>
+      </select>
+      <select id="use-state" title="use state">
+        <option value="unused">unused</option>
+        <option value="used">used</option>
+        <option value="">use state unset</option>
+      </select>
+      <select id="contamination" title="contamination state">
+        <option value="not-regulated">not-regulated</option>
+        <option value="potentially-infectious">potentially-infectious</option>
+        <option value="chemical">chemical</option>
+        <option value="cytotoxic">cytotoxic</option>
+        <option value="radioactive">radioactive</option>
+        <option value="">contamination unset</option>
+      </select>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="results" id="results"></div>
+  </section>
+</main>
+
+<script>
+// the palette the rendered demo uses, so a browser session and a rendered
+// session read the same way
+const CLASS_COLORS = [
+  "#00bcd4", "#ffc107", "#ef5350", "#66bb6a", "#ab47bc", "#ff7043", "#42a5f5",
+  "#d4e157", "#26c6da", "#ffa726", "#7e57c2", "#7cb342", "#ec407a",
+];
+
+const ACTION_COLORS = {
+  "secure-transport-to-reprocessing": "#a674ff",
+  "transport-to-reprocessing": "#3aa6ff",
+  "approved-sharps-stream": "#ff5c5c",
+  "facility-general-waste": "#3dcd8c",
+};
+
+const canvas = document.getElementById("stage");
+const context = canvas.getContext("2d");
+const capture = document.createElement("canvas");
+const captureContext = capture.getContext("2d");
+
+const elements = {
+  placeholder: document.getElementById("placeholder"),
+  bar: document.getElementById("bar"),
+  fill: document.getElementById("fill"),
+  status: document.getElementById("status"),
+  results: document.getElementById("results"),
+  camera: document.getElementById("camera"),
+  file: document.getElementById("file"),
+  finalize: document.getElementById("finalize"),
+  stop: document.getElementById("stop"),
+  workflowStage: document.getElementById("stage-select"),
+  useState: document.getElementById("use-state"),
+  contamination: document.getElementById("contamination"),
+};
+
+let session = null;
+let source = null;
+let stream = null;
+let running = false;
+let frames = 0;
+
+// Private HF Spaces authorize the iframe through this short-lived signature.
+// Local and public deployments have no signature, so their URLs stay unchanged.
+const hfSign = new URLSearchParams(window.location.search).get("__sign");
+
+function apiUrl(path) {
+  const url = new URL(path, window.location.origin);
+  if (hfSign) {
+    url.searchParams.set("__sign", hfSign);
+  }
+  return url.toString();
+}
+
+function status(message) {
+  elements.status.textContent = message;
+}
+
+function progress(fraction, complete) {
+  elements.fill.style.width = `${Math.min(1, Math.max(0, fraction)) * 100}%`;
+  elements.bar.classList.toggle("complete", Boolean(complete));
+}
+
+async function createSession() {
+  const response = await fetch(apiUrl("/v1/sessions"), { method: "POST" });
+  if (!response.ok) {
+    throw new Error(
+      response.status === 429
+        ? "every session slot is in use; stop one and try again"
+        : `could not start a session (${response.status})`,
+    );
+  }
+  return (await response.json()).session_id;
+}
+
+async function postFrame(video) {
+  capture.width = video.videoWidth;
+  capture.height = video.videoHeight;
+  captureContext.drawImage(video, 0, 0);
+
+  const blob = await new Promise((resolve) => capture.toBlob(resolve, "image/jpeg", 0.9));
+  const body = new FormData();
+  body.append("image", blob, "frame.jpg");
+
+  const response = await fetch(apiUrl(`/v1/sessions/${session}/frames`), {
+    method: "POST",
+    body,
+  });
+  if (!response.ok) {
+    throw new Error(`frame rejected (${response.status})`);
+  }
+  return response.json();
+}
+
+function postVideo(file) {
+  const body = new FormData();
+  body.append("video", file, file.name);
+
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", apiUrl(`/v1/sessions/${session}/video`));
+    request.responseType = "json";
+
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        progress((event.loaded / event.total) * 0.35);
+        status(`uploading video · ${Math.round(event.loaded / event.total * 100)}%`);
+      }
+    });
+    request.upload.addEventListener("load", () => {
+      progress(0.35);
+      status("upload complete · processing sampled frames on the GPU...");
+    });
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve(request.response);
+      } else {
+        reject(new Error(request.response?.detail || `video rejected (${request.status})`));
+      }
+    });
+    request.addEventListener("error", () => reject(new Error("video upload failed")));
+    request.send(body);
+  });
+}
+
+function draw(video, detections) {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  context.drawImage(video, 0, 0);
+
+  const scale = canvas.width / 900;
+  context.lineWidth = Math.max(2, Math.round(3 * scale));
+  context.font = `${Math.max(13, Math.round(20 * scale))}px system-ui, sans-serif`;
+  context.textBaseline = "top";
+
+  for (const detection of detections) {
+    const [left, top, right, bottom] = detection.box;
+    const color = CLASS_COLORS[detection.class_id % CLASS_COLORS.length];
+
+    context.strokeStyle = color;
+    context.strokeRect(left, top, right - left, bottom - top);
+
+    const padding = Math.round(5 * scale);
+    const metrics = context.measureText(detection.label);
+    const height = Math.max(18, Math.round(26 * scale));
+    const chipTop = Math.max(0, top - height);
+
+    context.fillStyle = color;
+    context.fillRect(left, chipTop, metrics.width + padding * 2, height);
+    context.fillStyle = "#11161f";
+    context.fillText(detection.label, left + padding, chipTop + padding / 2);
+  }
+}
+
+async function runVideo(file, video) {
+  elements.finalize.disabled = true;
+  draw(video, []);
+
+  const result = await postVideo(file);
+  if (!running) {
+    return;
+  }
+
+  frames = result.frame_count;
+  progress(1, false);
+  elements.finalize.disabled = false;
+  status(`${frames} sampled frames processed. finalize to see the inventory.`);
+}
+
+async function runCamera(video) {
+  while (running) {
+    const result = await postFrame(video);
+    frames = result.frame_count;
+    draw(video, result.detections);
+    progress(0.5 + Math.sin(frames / 4) * 0.5);
+    status(`frame ${frames}  ·  ${result.detections.length} tracked`);
+  }
+}
+
+async function start(video, run) {
+  elements.placeholder.style.display = "none";
+  elements.camera.disabled = true;
+  elements.file.disabled = true;
+  elements.finalize.disabled = false;
+  elements.stop.disabled = false;
+  elements.results.innerHTML = "";
+  progress(0, false);
+  frames = 0;
+
+  try {
+    session = await createSession();
+    running = true;
+    await run(video);
+  } catch (error) {
+    status(error.message);
+    running = false;
+    if (session) {
+      await fetch(apiUrl(`/v1/sessions/${session}`), { method: "DELETE" });
+      session = null;
+    }
+    elements.camera.disabled = false;
+    elements.file.disabled = false;
+    elements.finalize.disabled = true;
+    elements.stop.disabled = true;
+  }
+}
+
+function release() {
+  running = false;
+  if (stream) {
+    stream.getTracks().forEach((track) => track.stop());
+    stream = null;
+  }
+}
+
+elements.camera.addEventListener("click", async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+  } catch (error) {
+    status("no camera available in this browser");
+    return;
+  }
+
+  const video = document.createElement("video");
+  video.srcObject = stream;
+  video.muted = true;
+  await video.play();
+  source = video;
+  await start(video, runCamera);
+});
+
+elements.file.addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) {
+    return;
+  }
+
+  const video = document.createElement("video");
+  video.src = URL.createObjectURL(file);
+  video.muted = true;
+  await new Promise((resolve) => video.addEventListener("loadeddata", resolve, { once: true }));
+  source = video;
+  await start(video, () => runVideo(file, video));
+});
+
+elements.stop.addEventListener("click", async () => {
+  release();
+  if (session) {
+    await fetch(apiUrl(`/v1/sessions/${session}`), { method: "DELETE" });
+    session = null;
+  }
+  elements.camera.disabled = false;
+  elements.file.disabled = false;
+  elements.finalize.disabled = true;
+  elements.stop.disabled = true;
+  status("session discarded");
+});
+
+elements.finalize.addEventListener("click", async () => {
+  running = false;
+  elements.finalize.disabled = true;
+  status("finalizing...");
+
+  const request = { workflow_stage: elements.workflowStage.value };
+  if (elements.useState.value) {
+    request.use_state = elements.useState.value;
+  }
+  if (elements.contamination.value) {
+    request.contamination_state = elements.contamination.value;
+  }
+
+  const response = await fetch(apiUrl(`/v1/sessions/${session}/finalize`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    status(`finalize failed (${response.status})`);
+    return;
+  }
+
+  const finalized = await response.json();
+  progress(1, true);
+  render(finalized);
+  release();
+
+  await fetch(apiUrl(`/v1/sessions/${session}`), { method: "DELETE" });
+  session = null;
+  elements.camera.disabled = false;
+  elements.file.disabled = false;
+  elements.stop.disabled = true;
+});
+
+function render(finalized) {
+  if (!finalized.items.length) {
+    status(`${finalized.frame_count} frames, nothing tracked long enough to count`);
+    elements.results.innerHTML = "";
+    return;
+  }
+
+  status(`${finalized.frame_count} frames  ·  ${finalized.items.length} item classes`);
+
+  const table = document.createElement("table");
+  table.innerHTML =
+    "<thead><tr><th>ITEM CLASS</th><th>COUNT</th><th>ACTION</th></tr></thead>";
+  const body = document.createElement("tbody");
+
+  for (const item of finalized.items) {
+    const color = CLASS_COLORS[item.class_id % CLASS_COLORS.length];
+    const actionColor = ACTION_COLORS[item.action] || null;
+
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td style="border-left-color:${color}">${item.label}</td>
+      <td class="count">${item.count}</td>
+      <td class="action">${item.action ? item.action : "-"}</td>`;
+
+    if (actionColor) {
+      row.querySelector(".action").style.color = actionColor;
+    } else {
+      row.querySelector(".action").classList.add("none");
+    }
+    body.append(row);
+
+    // the reason matters most when no action came back, so the row that
+    // explains itself is the row that could not be decided
+    const detail = document.createElement("tr");
+    detail.className = "detail";
+    const missing = item.missing_fields.length
+      ? `: ${item.missing_fields.join(", ")}`
+      : "";
+    detail.innerHTML = `
+      <td style="border-left-color:${color}"></td>
+      <td colspan="2">${item.outcome} · ${item.reason}${missing}</td>`;
+    body.append(detail);
+  }
+
+  table.append(body);
+  elements.results.replaceChildren(table);
+}
+
+window.addEventListener("beforeunload", () => {
+  release();
+  if (session) {
+    fetch(apiUrl(`/v1/sessions/${session}`), {
+      method: "DELETE",
+      keepalive: true,
+    });
+  }
+});
+</script>
+</body>
+</html>
