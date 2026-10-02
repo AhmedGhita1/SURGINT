@@ -63,6 +63,7 @@ def test_console_is_served_from_the_package() -> None:
         assert "requestVideoFrameCallback(showFrame)" in response.text
         assert "presentedFrames - lastInferenceFrame" in response.text
         assert "Research demonstration only" not in response.text
+        assert "finalize to see the inventory" not in response.text
         assert "latestDetections = result.detections" in response.text
         assert 'method: "DELETE"' in response.text
         assert "keepalive: true" in response.text

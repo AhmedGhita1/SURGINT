@@ -373,7 +373,7 @@ async function runVideo(video) {
     completed = true;
     progress(1, false);
     elements.finalize.disabled = false;
-    status(`${frames} sampled frames processed. finalize to see the inventory.`);
+    status("");
   };
 
   const infer = async () => {
